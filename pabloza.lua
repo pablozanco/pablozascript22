@@ -23,18 +23,16 @@ LocalPlayer.CharacterAdded:Connect(AtualizarChar)
 local CFG = {
 	Aimbot = false,
 	SilentAim = false,
-	Triggerbot = false,
 	AutoLock = false,
-	Prediction = true,
+	Prediction = false,
 	PredForca = 0.12,
 	Suavidade = 0.2,
 	FOV = 140,
-	FOVDinamico = true,
 	Hitbox = 1.5,
 	HitboxExp = false,
 	HitboxScale = 2.2,
 	Parte = "Head",
-	TeamCheck = true,
+	TeamCheck = false,
 	MostrarFOV = false,
 	Prioridade = "Crosshair",
 	ESP = {
@@ -47,7 +45,8 @@ local CFG = {
 		Vida = false,
 		Chams = false,
 		Flags = false,
-		Cor = Color3.fromRGB(0, 255, 140)
+		Cor = Color3.fromRGB(0, 255, 140),
+		TamanhoTexto = 13
 	},
 	SpeedOn = false,
 	SpeedModo = "Suave",
@@ -104,9 +103,6 @@ local function PegarAlvo()
 	local melhor, melhorScore = nil, math.huge
 	local centro = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 	local fov = CFG.FOV
-	if CFG.FOVDinamico and Root then
-		fov = CFG.FOV
-	end
 
 	for _, p in pairs(Players:GetPlayers()) do
 		if p ~= LocalPlayer and p.Character and not MesmoTime(p) then
@@ -117,9 +113,6 @@ local function PegarAlvo()
 				if on and sp.Z > 0 then
 					local distTela = (Vector2.new(sp.X, sp.Y) - centro).Magnitude
 					local dist3D = Root and (Root.Position - parte.Position).Magnitude or 999
-					if CFG.FOVDinamico and dist3D < 35 then
-						fov = CFG.FOV + 50
-					end
 					if distTela <= fov * CFG.Hitbox then
 						local score = distTela
 						if CFG.Prioridade == "Distancia" then
@@ -233,7 +226,7 @@ local function CriarESP(p)
 	flag.BackgroundTransparency = 1
 	flag.TextStrokeTransparency = 0.4
 	flag.Font = Enum.Font.GothamBold
-	flag.TextSize = 13
+	flag.TextSize = CFG.ESP.TamanhoTexto
 	flag.TextColor3 = CFG.ESP.Cor
 	flag.Parent = bb
 	d.BB = bb
@@ -290,7 +283,6 @@ end
 
 local function OlhandoPraVoce(p)
 	local hrp = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
-	local head = p.Character and p.Character:FindFirstChild("Head")
 	if not hrp or not Root then return false end
 	local look = hrp.CFrame.LookVector
 	local dir = (Root.Position - hrp.Position).Unit
@@ -327,6 +319,7 @@ local function ESPLoop()
 			local show = CFG.ESP.Nomes or CFG.ESP.Distancia or CFG.ESP.Flags
 			d.BB.Enabled = show
 			d.BB.Adornee = hrp
+			d.Flag.TextSize = CFG.ESP.TamanhoTexto
 			if CFG.ESP.Flags then
 				local mir = OlhandoPraVoce(p) and " | MIRANDO" or ""
 				d.Flag.Text = string.format("%s | %d HP | %dm%s", p.Name, math.floor(h.Health), math.floor(dist), mir)
@@ -483,14 +476,6 @@ local function RadarLoop()
 	end
 end
 
-local function TriggerClick()
-	pcall(function()
-		Vim:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-		task.wait(0.03)
-		Vim:SendMouseButtonEvent(0, 0, 0, false, game, 0)
-	end)
-end
-
 RunService.RenderStepped:Connect(function()
 	FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 	FOVCircle.Radius = CFG.FOV
@@ -500,7 +485,7 @@ RunService.RenderStepped:Connect(function()
 	AtualizarHitboxes()
 
 	local alvo = nil
-	if CFG.Aimbot or CFG.SilentAim or CFG.Triggerbot or CFG.AutoLock then
+	if CFG.Aimbot or CFG.SilentAim or CFG.AutoLock then
 		alvo = PegarAlvo()
 	end
 
@@ -514,16 +499,6 @@ RunService.RenderStepped:Connect(function()
 		local pos = PosAlvo(alvo)
 		local cf = CFrame.lookAt(Camera.CFrame.Position, pos)
 		Camera.CFrame = Camera.CFrame:Lerp(cf, math.clamp(CFG.Suavidade * 0.35, 0.02, 0.2))
-	end
-
-	if alvo and CFG.Triggerbot then
-		local sp, on = Camera:WorldToViewportPoint(alvo.Position)
-		if on then
-			local centro = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-			if (Vector2.new(sp.X, sp.Y) - centro).Magnitude < 35 * CFG.Hitbox then
-				TriggerClick()
-			end
-		end
 	end
 end)
 
@@ -696,7 +671,7 @@ UserInputService.InputBegan:Connect(function(input, gp)
 end)
 
 local Window = Library:CreateWindow{
-	Title = "HUB INSANO",
+	Title = "Pabloza xit",
 	SubTitle = "Fluent Renewed",
 	TabWidth = 160,
 	Size = UDim2.fromOffset(720, 520),
@@ -711,17 +686,16 @@ local Tabs = {
 	Combate = Window:CreateTab{Title = "Combate", Icon = "crosshair"},
 	ESP = Window:CreateTab{Title = "ESP", Icon = "eye"},
 	Movimento = Window:CreateTab{Title = "Movimento", Icon = "person-standing"},
-	Util = Window:CreateTab{Title = "Utilidade", Icon = "settings"},
-	Insano = Window:CreateTab{Title = "Insano", Icon = "zap"}
+	Util = Window:CreateTab{Title = "Utilidade", Icon = "settings"}
 }
 
+-- Combate
 Tabs.Combate:CreateToggle("Aimbot", {Title = "Aimbot", Default = false, Callback = function(v) CFG.Aimbot = v end})
 Tabs.Combate:CreateToggle("SilentAim", {Title = "Silent Aim", Default = false, Callback = function(v) CFG.SilentAim = v end})
-Tabs.Combate:CreateToggle("Triggerbot", {Title = "Triggerbot", Default = false, Callback = function(v) CFG.Triggerbot = v end})
 Tabs.Combate:CreateToggle("AutoLock", {Title = "Auto-Lock Head", Default = false, Callback = function(v) CFG.AutoLock = v end})
-Tabs.Combate:CreateToggle("Prediction", {Title = "Prediction", Default = true, Callback = function(v) CFG.Prediction = v end})
+Tabs.Combate:CreateToggle("Prediction", {Title = "Prediction", Default = false, Callback = function(v) CFG.Prediction = v end})
 Tabs.Combate:CreateToggle("HitboxExp", {Title = "Hitbox Expander", Default = false, Callback = function(v) CFG.HitboxExp = v end})
-Tabs.Combate:CreateToggle("TeamCheck", {Title = "Team Check", Default = true, Callback = function(v) CFG.TeamCheck = v end})
+Tabs.Combate:CreateToggle("TeamCheck", {Title = "Team Check", Default = false, Callback = function(v) CFG.TeamCheck = v end})
 Tabs.Combate:CreateToggle("MostrarFOV", {Title = "Mostrar FOV", Default = false, Callback = function(v) CFG.MostrarFOV = v end})
 Tabs.Combate:CreateSlider("Suavidade", {Title = "Suavidade", Default = 0.2, Min = 0.05, Max = 0.55, Rounding = 2, Callback = function(v) CFG.Suavidade = v end})
 Tabs.Combate:CreateSlider("FOV", {Title = "FOV", Default = 140, Min = 40, Max = 300, Rounding = 0, Callback = function(v) CFG.FOV = v end})
@@ -731,6 +705,7 @@ Tabs.Combate:CreateSlider("PredForca", {Title = "Força Prediction", Default = 0
 Tabs.Combate:CreateDropdown("Parte", {Title = "Parte do Alvo", Values = {"Head", "HumanoidRootPart"}, Default = 1, Callback = function(v) CFG.Parte = v end})
 Tabs.Combate:CreateDropdown("Prioridade", {Title = "Prioridade", Values = {"Crosshair", "Distancia", "Vida", "Visivel"}, Default = 1, Callback = function(v) CFG.Prioridade = v end})
 
+-- ESP
 Tabs.ESP:CreateToggle("HL", {Title = "Highlight", Default = false, Callback = function(v) CFG.ESP.Highlight = v end})
 Tabs.ESP:CreateToggle("Caixa", {Title = "Caixa", Default = false, Callback = function(v) CFG.ESP.Caixa = v end})
 Tabs.ESP:CreateToggle("Filled", {Title = "Chams / Filled Box", Default = false, Callback = function(v) CFG.ESP.Chams = v end})
@@ -740,8 +715,10 @@ Tabs.ESP:CreateToggle("Vida", {Title = "Barra de Vida", Default = false, Callbac
 Tabs.ESP:CreateToggle("Nomes", {Title = "Nomes", Default = false, Callback = function(v) CFG.ESP.Nomes = v end})
 Tabs.ESP:CreateToggle("Dist", {Title = "Distância", Default = false, Callback = function(v) CFG.ESP.Distancia = v end})
 Tabs.ESP:CreateToggle("Flags", {Title = "Flags (Nome+HP+Dist+Mirando)", Default = false, Callback = function(v) CFG.ESP.Flags = v end})
+Tabs.ESP:CreateSlider("TamanhoTexto", {Title = "Tamanho Distância", Default = 13, Min = 8, Max = 24, Rounding = 0, Callback = function(v) CFG.ESP.TamanhoTexto = v end})
 Tabs.ESP:CreateColorpicker("ESPCor", {Title = "Cor do ESP", Default = Color3.fromRGB(0, 255, 140), Callback = function(v) CFG.ESP.Cor = v end})
 
+-- Movimento
 Tabs.Movimento:CreateToggle("Speed", {Title = "Speed Hack", Default = false, Callback = function(v) SetSpeed(v) end})
 Tabs.Movimento:CreateDropdown("SpeedModo", {Title = "Modo Speed", Values = {"Suave", "Rapido"}, Default = 1, Callback = function(v) CFG.SpeedModo = v end})
 Tabs.Movimento:CreateSlider("SpeedVal", {Title = "Velocidade", Default = 22, Min = 16, Max = 36, Rounding = 0, Callback = function(v) CFG.SpeedVal = v end})
@@ -776,10 +753,12 @@ Tabs.Movimento:CreateDropdown("TPPlayer", {
 	end
 })
 
+-- Utilidade
 Tabs.Util:CreateToggle("Fullbright", {Title = "Fullbright", Default = false, Callback = function(v) SetFullbright(v) end})
 Tabs.Util:CreateToggle("NoFog", {Title = "No Fog", Default = false, Callback = function(v) SetNoFog(v) end})
 Tabs.Util:CreateToggle("XRay", {Title = "X-Ray", Default = false, Callback = function(v) SetXRay(v) end})
 Tabs.Util:CreateToggle("AntiAFK", {Title = "Anti-AFK", Default = false, Callback = function(v) SetAntiAFK(v) end})
+Tabs.Util:CreateToggle("Radar", {Title = "Radar 2D", Default = false, Callback = function(v) CFG.Radar = v end})
 Tabs.Util:CreateSlider("CamFOV", {Title = "FOV da Câmera", Default = 70, Min = 50, Max = 120, Rounding = 0, Callback = function(v)
 	CFG.CamFOV = v
 	Camera.FieldOfView = v
@@ -814,12 +793,5 @@ Tabs.Util:CreateButton{Title = "Server Hop", Callback = function()
 	end)
 end}
 
-Tabs.Insano:CreateToggle("FOVDinamico", {Title = "Aim FOV Dinâmico", Default = true, Callback = function(v) CFG.FOVDinamico = v end})
-Tabs.Insano:CreateToggle("Radar", {Title = "Radar 2D", Default = false, Callback = function(v) CFG.Radar = v end})
-Tabs.Insano:CreateParagraph("Info", {
-	Title = "Combo recomendado",
-	Content = "Silent Aim + Triggerbot + Hitbox Expander + Flags + FOV Dinamico"
-})
-
 Window:SelectTab(1)
-Library:Notify{Title = "HUB INSANO", Content = "Fluent Renewed carregado", Duration = 5}
+Library:Notify{Title = "Pabloza xit", Content = "Carregado", Duration = 4}
