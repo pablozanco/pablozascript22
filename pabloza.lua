@@ -12,7 +12,7 @@ local function AntiCrash()
         end
         
         if method == "FireServer" or method == "InvokeServer" then
-            if self.Name:lower():find("kick") or self.Name:lower():find("ban") or self.Name:lower():find("detect") or self.Name:lower():find("crash") then
+            if self.Name:lower():find("kick") or self.Name:lower():find("ban") or self.Name:lower():find("detect") or self.Name:lower():find("crash") or self.Name:lower():find("exploit") or self.Name:lower():find("cheat") then
                 return
             end
         end
@@ -28,7 +28,7 @@ local function AntiCrash()
     oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
         if key == "HttpGet" or key == "HttpGetAsync" then
             return function(url)
-                if string.find(url, "games.roblox.com") or string.find(url, "economy.roblox.com") then
+                if string.find(url, "games.roblox.com") or string.find(url, "economy.roblox.com") or string.find(url, "anticheat") then
                     return '{"data":[]}'
                 end
                 return oldIndex(self, key)(self, url)
@@ -55,33 +55,35 @@ local function AntiCrash()
         return oldNewIndex(self, key, value)
     end))
 
-    local oldFireServer
-    oldFireServer = hookfunction(game.ReplicatedStorage.FireServer, newcclosure(function(self, ...)
-        if self and self.Name then
-            if self.Name:lower():find("kick") or self.Name:lower():find("ban") or self.Name:lower():find("detect") or self.Name:lower():find("crash") then
-                return
+    local oldGetNil
+    oldGetNil = hookfunction(getgc, newcclosure(function(...)
+        local results = oldGetNil(...)
+        for _, v in pairs(results) do
+            if type(v) == "function" then
+                local info = getinfo(v)
+                if info and info.source then
+                    if info.source:find("anticheat") or info.source:find("exploit") then
+                        table.remove(results, _)
+                    end
+                end
             end
         end
-        return oldFireServer(self, ...)
+        return results
     end))
 
-    local oldInvokeServer
-    oldInvokeServer = hookfunction(game.ReplicatedStorage.InvokeServer, newcclosure(function(self, ...)
-        if self and self.Name then
-            if self.Name:lower():find("kick") or self.Name:lower():find("ban") or self.Name:lower():find("detect") or self.Name:lower():find("crash") then
-                return
+    local oldLoadstring
+    oldLoadstring = hookfunction(loadstring, newcclosure(function(...)
+        local result = oldLoadstring(...)
+        if result then
+            return function(...)
+                local ok, err = pcall(result, ...)
+                if not ok then
+                    return nil, "Erro protegido"
+                end
+                return ok, err
             end
         end
-        return oldInvokeServer(self, ...)
-    end))
-
-    local oldCFrame
-    oldCFrame = hookfunction(CFrame.new, newcclosure(function(...)
-        local args = {...}
-        if type(args[1]) == "table" then
-            return oldCFrame(...)
-        end
-        return oldCFrame(...)
+        return result
     end))
 
     local oldSetState
@@ -105,11 +107,390 @@ local function AntiCrash()
         return nil
     end))
 
+    local oldSpawn
+    oldSpawn = hookfunction(task.spawn, newcclosure(function(...)
+        local args = {...}
+        if type(args[1]) == "function" then
+            local func = args[1]
+            args[1] = function(...)
+                local ok, err = pcall(func, ...)
+                if not ok then
+                    return nil
+                end
+                return ok, err
+            end
+        end
+        return oldSpawn(unpack(args))
+    end))
+
+    local oldGetInfo
+    oldGetInfo = hookfunction(getinfo, newcclosure(function(...)
+        local info = oldGetInfo(...)
+        if info then
+            info.source = "print"
+            info.short_src = "print"
+            info.what = "Lua"
+            info.linedefined = 0
+            info.lastlinedefined = 0
+            info.currentline = -1
+            info.nups = 0
+            info.nparams = 0
+            info.isvararg = false
+            info.func = nil
+        end
+        return info
+    end))
+
+    local oldGetScripts
+    oldGetScripts = hookfunction(getscripts, newcclosure(function(...)
+        return {}
+    end))
+
+    local oldGetCallingScript
+    oldGetCallingScript = hookfunction(getcallingscript, newcclosure(function(...)
+        return nil
+    end))
+
+    local oldGetThreadContext
+    oldGetThreadContext = hookfunction(getthreadcontext, newcclosure(function(...)
+        return nil
+    end))
+
+    local oldGetClosure
+    oldGetClosure = hookfunction(getupvalue, newcclosure(function(func, index)
+        return nil
+    end))
+
+    local oldSetClosure
+    oldSetClosure = hookfunction(setupvalue, newcclosure(function(func, index, value)
+        return false
+    end))
+
+    local oldGetHash
+    oldGetHash = hookfunction(gethui, newcclosure(function(...)
+        return nil
+    end))
+
+    local oldGetCustomAsset
+    oldGetCustomAsset = hookfunction(getcustomasset, newcclosure(function(...)
+        return ""
+    end))
+
+    local oldGetAsset
+    oldGetAsset = hookfunction(getasset, newcclosure(function(...)
+        return ""
+    end))
+
+    local oldGetTexture
+    oldGetTexture = hookfunction(gettexture, newcclosure(function(...)
+        return ""
+    end))
+
+    local oldGetRenderProperty
+    oldGetRenderProperty = hookfunction(getrenderproperty, newcclosure(function(...)
+        return nil
+    end))
+
+    local oldSetRenderProperty
+    oldSetRenderProperty = hookfunction(setrenderproperty, newcclosure(function(...)
+        return false
+    end))
+
+    local oldGetDrawing
+    oldGetDrawing = hookfunction(getdrawings, newcclosure(function(...)
+        return {}
+    end))
+
+    local oldGetConnections
+    oldGetConnections = hookfunction(getconnections, newcclosure(function(...)
+        return {}
+    end))
+
+    local oldGetSignals
+    oldGetSignals = hookfunction(getsignals, newcclosure(function(...)
+        return {}
+    end))
+
+    local oldGetEvents
+    oldGetEvents = hookfunction(getevents, newcclosure(function(...)
+        return {}
+    end))
+
+    local oldGetNilInstances
+    oldGetNilInstances = hookfunction(getnilinstances, newcclosure(function(...)
+        return {}
+    end))
+
+    local oldGetObjects
+    oldGetObjects = hookfunction(getobjects, newcclosure(function(...)
+        return {}
+    end))
+
+    local oldGetInstances
+    oldGetInstances = hookfunction(getinstances, newcclosure(function(...)
+        return {}
+    end))
+
+    local oldGetLoadedModules
+    oldGetLoadedModules = hookfunction(getloadedmodules, newcclosure(function(...)
+        return {}
+    end))
+
+    local oldGetModules
+    oldGetModules = hookfunction(getmodules, newcclosure(function(...)
+        return {}
+    end))
+
+    local oldGetRbxAsset
+    oldGetRbxAsset = hookfunction(getrbxasset, newcclosure(function(...)
+        return ""
+    end))
+
+    local oldGetRbxTexture
+    oldGetRbxTexture = hookfunction(getrbxtexture, newcclosure(function(...)
+        return ""
+    end))
+
+    local oldGetRbxThumbnail
+    oldGetRbxThumbnail = hookfunction(getrbxthumbnail, newcclosure(function(...)
+        return ""
+    end))
+
+    local oldGetRbxAssetId
+    oldGetRbxAssetId = hookfunction(getrbxassetid, newcclosure(function(...)
+        return 0
+    end))
+
+    local oldGetRbxThumbnailId
+    oldGetRbxThumbnailId = hookfunction(getrbxthumbnailid, newcclosure(function(...)
+        return 0
+    end))
+
+    local oldGetRbxSoundId
+    oldGetRbxSoundId = hookfunction(getrbxsoundid, newcclosure(function(...)
+        return 0
+    end))
+
+    local oldGetRbxVideoId
+    oldGetRbxVideoId = hookfunction(getrbxvideoid, newcclosure(function(...)
+        return 0
+    end))
+
+    local oldGetRbxAnimationId
+    oldGetRbxAnimationId = hookfunction(getrbxanimationid, newcclosure(function(...)
+        return 0
+    end))
+
+    local oldGetRbxMeshId
+    oldGetRbxMeshId = hookfunction(getrbxmeshid, newcclosure(function(...)
+        return 0
+    end))
+
+    local oldGetRbxTextureId
+    oldGetRbxTextureId = hookfunction(getrbxtextureid, newcclosure(function(...)
+        return 0
+    end))
+
+    local oldGetRbxFontId
+    oldGetRbxFontId = hookfunction(getrbxfontid, newcclosure(function(...)
+        return 0
+    end))
+
+    local oldGetRbxPluginId
+    oldGetRbxPluginId = hookfunction(getrbxpluginid, newcclosure(function(...)
+        return 0
+    end))
+
+    local oldGetRbxUniverseId
+    oldGetRbxUniverseId = hookfunction(getrbxuniverseid, newcclosure(function(...)
+        return 0
+    end))
+
+    local oldGetRbxPlaceId
+    oldGetRbxPlaceId = hookfunction(getrbxplaceid, newcclosure(function(...)
+        return 0
+    end))
+
+    local oldGetRbxGameId
+    oldGetRbxGameId = hookfunction(getrbxgameid, newcclosure(function(...)
+        return 0
+    end))
+
+    local oldGetRbxJobId
+    oldGetRbxJobId = hookfunction(getrbxjobid, newcclosure(function(...)
+        return ""
+    end))
+
+    local oldGetRbxUserId
+    oldGetRbxUserId = hookfunction(getrbxuserid, newcclosure(function(...)
+        return 0
+    end))
+
+    local oldGetRbxUserName
+    oldGetRbxUserName = hookfunction(getrbxusername, newcclosure(function(...)
+        return ""
+    end))
+
+    local oldGetRbxDisplayName
+    oldGetRbxDisplayName = hookfunction(getrbxdisplayname, newcclosure(function(...)
+        return ""
+    end))
+
+    local oldGetRbxAccountAge
+    oldGetRbxAccountAge = hookfunction(getrbxaccountage, newcclosure(function(...)
+        return 0
+    end))
+
+    local oldGetRbxMembershipType
+    oldGetRbxMembershipType = hookfunction(getrbxmembershiptype, newcclosure(function(...)
+        return 0
+    end))
+
+    local oldGetRbxFriendshipCount
+    oldGetRbxFriendshipCount = hookfunction(getrbxfriendshipcount, newcclosure(function(...)
+        return 0
+    end))
+
+    local oldGetRbxFollowerCount
+    oldGetRbxFollowerCount = hookfunction(getrbxfollowercount, newcclosure(function(...)
+        return 0
+    end))
+
+    local oldGetRbxFollowingCount
+    oldGetRbxFollowingCount = hookfunction(getrbxfollowingcount, newcclosure(function(...)
+        return 0
+    end))
+
+    local oldGetRbxOnlineCount
+    oldGetRbxOnlineCount = hookfunction(getrbxonlinecount, newcclosure(function(...)
+        return 0
+    end))
+
+    local oldGetRbxPremium
+    oldGetRbxPremium = hookfunction(getrbxpremium, newcclosure(function(...)
+        return false
+    end))
+
+    local oldGetRbxVerified
+    oldGetRbxVerified = hookfunction(getrbxverified, newcclosure(function(...)
+        return false
+    end))
+
+    local oldGetRbxBanned
+    oldGetRbxBanned = hookfunction(getrbxbanned, newcclosure(function(...)
+        return false
+    end))
+
+    local oldGetRbxMuted
+    oldGetRbxMuted = hookfunction(getrbxmuted, newcclosure(function(...)
+        return false
+    end))
+
+    local oldGetRbxBlocked
+    oldGetRbxBlocked = hookfunction(getrbxblocked, newcclosure(function(...)
+        return false
+    end))
+
+    local oldGetRbxFriend
+    oldGetRbxFriend = hookfunction(getrbxfriend, newcclosure(function(...)
+        return false
+    end))
+
+    local oldGetRbxFollower
+    oldGetRbxFollower = hookfunction(getrbxfollower, newcclosure(function(...)
+        return false
+    end))
+
+    local oldGetRbxFollowing
+    oldGetRbxFollowing = hookfunction(getrbxfollowing, newcclosure(function(...)
+        return false
+    end))
+
+    local oldGetRbxOnline
+    oldGetRbxOnline = hookfunction(getrbxonline, newcclosure(function(...)
+        return false
+    end))
+
+    local oldGetRbxOffline
+    oldGetRbxOffline = hookfunction(getrbxoffline, newcclosure(function(...)
+        return false
+    end))
+
+    local oldGetRbxInGame
+    oldGetRbxInGame = hookfunction(getrbxingame, newcclosure(function(...)
+        return false
+    end))
+
+    local oldGetRbxInStudio
+    oldGetRbxInStudio = hookfunction(getrbxinstudio, newcclosure(function(...)
+        return false
+    end))
+
+    local oldGetRbxInRoblox
+    oldGetRbxInRoblox = hookfunction(getrbxinroblox, newcclosure(function(...)
+        return false
+    end))
+
+    local oldGetRbxInExploit
+    oldGetRbxInExploit = hookfunction(getrbxinexploit, newcclosure(function(...)
+        return false
+    end))
+
+    local oldGetRbxInExecutor
+    oldGetRbxInExecutor = hookfunction(getrbxinexecutor, newcclosure(function(...)
+        return false
+    end))
+
+    local oldGetRbxInScript
+    oldGetRbxInScript = hookfunction(getrbxinscript, newcclosure(function(...)
+        return false
+    end))
+
+    local oldGetRbxInLocalScript
+    oldGetRbxInLocalScript = hookfunction(getrbxinlocalscript, newcclosure(function(...)
+        return false
+    end))
+
+    local oldGetRbxInModuleScript
+    oldGetRbxInModuleScript = hookfunction(getrbxinmodulescript, newcclosure(function(...)
+        return false
+    end))
+
+    local oldGetRbxInCoreScript
+    oldGetRbxInCoreScript = hookfunction(getrbxincoreScript, newcclosure(function(...)
+        return false
+    end))
+
+    local oldGetRbxInPlugin
+    oldGetRbxInPlugin = hookfunction(getrbxinplugin, newcclosure(function(...)
+        return false
+    end))
+
+    local oldGetRbxInPackage
+    oldGetRbxInPackage = hookfunction(getrbxinpackage, newcclosure(function(...)
+        return false
+    end))
+
+    local oldGetRbxInAsset
+    oldGetRbxInAsset = hookfunction(getrbxinasset, newcclosure(function(...)
+        return false
+    end))
+
+    local oldGetRbxInGame
+    oldGetRbxInGame = hookfunction(getrbxingame, newcclosure(function(...)
+        return false
+    end))
+
     getgenv().AntiCrash = true
-    getgenv().BypassVersion = "3.0"
+    getgenv().BypassVersion = "5.0"
+    getgenv().BypassActive = true
+    getgenv().BypassLevel = "MAX"
 end
 
 pcall(AntiCrash)
+
+local PanelKey = Enum.KeyCode.RightControl
+local PanicKey = Enum.KeyCode.Nine
 
 if not Drawing then
     getgenv().Drawing = {
@@ -173,6 +554,8 @@ local CFG = {
     TeamCheck = false,
     MostrarFOV = false,
     Prioridade = "Crosshair",
+    WallCheck = false,
+    WallBang = false,
     ESP = {
         Highlight = false,
         Caixa = false,
@@ -247,6 +630,7 @@ local function PegarAlvo()
             local h = p.Character:FindFirstChildOfClass("Humanoid")
             local parte = p.Character:FindFirstChild(CFG.Parte) or p.Character:FindFirstChild("HumanoidRootPart")
             if h and h.Health > 0 and parte then
+                if CFG.WallCheck and not Visivel(parte) then continue end
                 local sp, on = Camera:WorldToViewportPoint(parte.Position)
                 if on and sp.Z > 0 then
                     local distTela = (Vector2.new(sp.X, sp.Y) - centro).Magnitude
@@ -817,7 +1201,7 @@ local Window = Library:CreateWindow{
     MinSize = Vector2.new(500, 380),
     Acrylic = true,
     Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.RightControl
+    MinimizeKey = PanelKey
 }
 
 local Tabs = {
@@ -834,6 +1218,8 @@ Tabs.Combate:CreateToggle("Prediction", {Title = "Prediction", Default = false, 
 Tabs.Combate:CreateToggle("HitboxExp", {Title = "Hitbox Expander", Default = false, Callback = function(v) CFG.HitboxExp = v end})
 Tabs.Combate:CreateToggle("TeamCheck", {Title = "Team Check", Default = false, Callback = function(v) CFG.TeamCheck = v end})
 Tabs.Combate:CreateToggle("MostrarFOV", {Title = "Mostrar FOV", Default = false, Callback = function(v) CFG.MostrarFOV = v end})
+Tabs.Combate:CreateToggle("WallCheck", {Title = "Wall Check", Default = false, Callback = function(v) CFG.WallCheck = v end})
+Tabs.Combate:CreateToggle("WallBang", {Title = "WallBang", Default = false, Callback = function(v) CFG.WallBang = v end})
 Tabs.Combate:CreateSlider("Suavidade", {Title = "Suavidade", Default = 0.2, Min = 0.05, Max = 0.55, Rounding = 2, Callback = function(v) CFG.Suavidade = v end})
 Tabs.Combate:CreateSlider("FOV", {Title = "FOV", Default = 140, Min = 40, Max = 300, Rounding = 0, Callback = function(v) CFG.FOV = v end})
 Tabs.Combate:CreateSlider("HitboxAim", {Title = "Tamanho Hitbox Aim", Default = 1.5, Min = 1, Max = 3, Rounding = 1, Callback = function(v) CFG.Hitbox = v end})
@@ -927,5 +1313,117 @@ Tabs.Util:CreateButton{Title = "Server Hop", Callback = function()
     end)
 end}
 
+Tabs.Util:CreateButton{Title = "Configurar Tecla do Painel", Callback = function()
+    Library:Notify{Title = "Configuração", Content = "Pressione a tecla desejada para abrir/fechar o painel", Duration = 3}
+    local conn
+    conn = UserInputService.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            PanelKey = input.KeyCode
+            Window.MinimizeKey = PanelKey
+            Library:Notify{Title = "Tecla Configurada", Content = "Painel agora abre com: " .. tostring(PanelKey), Duration = 3}
+            conn:Disconnect()
+        end
+    end)
+end}
+
+local PanicActive = false
+local EstadoOriginal = {}
+
+local function SalvarEstado()
+    EstadoOriginal = {
+        Aimbot = CFG.Aimbot,
+        SilentAim = CFG.SilentAim,
+        AutoLock = CFG.AutoLock,
+        Prediction = CFG.Prediction,
+        HitboxExp = CFG.HitboxExp,
+        WallCheck = CFG.WallCheck,
+        WallBang = CFG.WallBang,
+        SpeedOn = CFG.SpeedOn,
+        Noclip = CFG.Noclip,
+        Fly = CFG.Fly,
+        InfJump = CFG.InfJump,
+        NoFall = CFG.NoFall,
+        Fullbright = CFG.Fullbright,
+        NoFog = CFG.NoFog,
+        XRay = CFG.XRay,
+        AntiAFK = CFG.AntiAFK,
+        Radar = CFG.Radar,
+        TPClick = CFG.TPClick
+    }
+end
+
+local function DesativarTudo()
+    SalvarEstado()
+    CFG.Aimbot = false
+    CFG.SilentAim = false
+    CFG.AutoLock = false
+    CFG.Prediction = false
+    CFG.HitboxExp = false
+    CFG.WallCheck = false
+    CFG.WallBang = false
+    SetSpeed(false)
+    SetNoclip(false)
+    SetFly(false)
+    SetInfJump(false)
+    SetNoFall(false)
+    SetFullbright(false)
+    SetNoFog(false)
+    SetXRay(false)
+    SetAntiAFK(false)
+    CFG.Radar = false
+    CFG.TPClick = false
+    PanicActive = true
+    Library:Notify{Title = "PANIC MODE", Content = "Todas as opções desativadas", Duration = 3}
+end
+
+local function RestaurarEstado()
+    if not PanicActive then return end
+    CFG.Aimbot = EstadoOriginal.Aimbot
+    CFG.SilentAim = EstadoOriginal.SilentAim
+    CFG.AutoLock = EstadoOriginal.AutoLock
+    CFG.Prediction = EstadoOriginal.Prediction
+    CFG.HitboxExp = EstadoOriginal.HitboxExp
+    CFG.WallCheck = EstadoOriginal.WallCheck
+    CFG.WallBang = EstadoOriginal.WallBang
+    SetSpeed(EstadoOriginal.SpeedOn)
+    SetNoclip(EstadoOriginal.Noclip)
+    SetFly(EstadoOriginal.Fly)
+    SetInfJump(EstadoOriginal.InfJump)
+    SetNoFall(EstadoOriginal.NoFall)
+    SetFullbright(EstadoOriginal.Fullbright)
+    SetNoFog(EstadoOriginal.NoFog)
+    SetXRay(EstadoOriginal.XRay)
+    SetAntiAFK(EstadoOriginal.AntiAFK)
+    CFG.Radar = EstadoOriginal.Radar
+    CFG.TPClick = EstadoOriginal.TPClick
+    PanicActive = false
+    Library:Notify{Title = "PANIC MODE", Content = "Opções restauradas", Duration = 3}
+end
+
+Tabs.Util:CreateButton{Title = "Configurar Tecla Panic", Callback = function()
+    Library:Notify{Title = "Configuração", Content = "Pressione a tecla desejada para ativar/desativar Panic Mode", Duration = 3}
+    local conn
+    conn = UserInputService.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            PanicKey = input.KeyCode
+            Library:Notify{Title = "Tecla Configurada", Content = "Panic Mode agora ativa com: " .. tostring(PanicKey), Duration = 3}
+            conn:Disconnect()
+        end
+    end)
+end}
+
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.UserInputType == Enum.UserInputType.Keyboard then
+        if input.KeyCode == PanicKey then
+            if PanicActive then
+                RestaurarEstado()
+            else
+                DesativarTudo()
+            end
+        end
+    end
+end)
+
 Window:SelectTab(1)
-Library:Notify{Title = "Pabloza xit", Content = "Carregado", Duration = 4}
+Library:Notify{Title = "Pabloza xit", Content = "Carregado com bypass MAX", Duration = 4}
