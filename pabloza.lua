@@ -1,27 +1,115 @@
-local oldNamecall
-oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-    local method = getnamecallmethod()
-    if method == "HttpGetAsync" or method == "HttpGet" then
-        return game:HttpGet("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/main/Fluent.luau")
-    end
-    if method == "GetObjects" and self == game:GetService("ContentProvider") then
-        return {}
-    end
-    return oldNamecall(self, ...)
-end))
-
-local oldIndex
-oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
-    if key == "HttpGet" or key == "HttpGetAsync" then
-        return function(url)
-            if string.find(url, "games.roblox.com") or string.find(url, "economy.roblox.com") then
-                return '{"data":[]}'
+local function AntiCrash()
+    local oldNamecall
+    oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        local args = {...}
+        
+        if method == "HttpGetAsync" or method == "HttpGet" then
+            local url = tostring(args[1])
+            if url:find("github") or url:find("raw") then
+                return game:HttpGet("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/main/Fluent.luau")
             end
-            return oldIndex(self, key)(self, url)
         end
-    end
-    return oldIndex(self, key)
-end))
+        
+        if method == "FireServer" or method == "InvokeServer" then
+            if self.Name:lower():find("kick") or self.Name:lower():find("ban") or self.Name:lower():find("detect") or self.Name:lower():find("crash") then
+                return
+            end
+        end
+        
+        if method == "GetObjects" and self == game:GetService("ContentProvider") then
+            return {}
+        end
+        
+        return oldNamecall(self, ...)
+    end))
+
+    local oldIndex
+    oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
+        if key == "HttpGet" or key == "HttpGetAsync" then
+            return function(url)
+                if string.find(url, "games.roblox.com") or string.find(url, "economy.roblox.com") then
+                    return '{"data":[]}'
+                end
+                return oldIndex(self, key)(self, url)
+            end
+        end
+        
+        if key == "WalkSpeed" or key == "JumpPower" then
+            return oldIndex(self, key)
+        end
+        
+        return oldIndex(self, key)
+    end))
+
+    local oldNewIndex
+    oldNewIndex = hookmetamethod(game, "__newindex", newcclosure(function(self, key, value)
+        if key == "WalkSpeed" and value > 25 then
+            value = math.clamp(value, 16, 25)
+        end
+        
+        if key == "CanCollide" and value == false then
+            value = true
+        end
+        
+        return oldNewIndex(self, key, value)
+    end))
+
+    local oldFireServer
+    oldFireServer = hookfunction(game.ReplicatedStorage.FireServer, newcclosure(function(self, ...)
+        if self and self.Name then
+            if self.Name:lower():find("kick") or self.Name:lower():find("ban") or self.Name:lower():find("detect") or self.Name:lower():find("crash") then
+                return
+            end
+        end
+        return oldFireServer(self, ...)
+    end))
+
+    local oldInvokeServer
+    oldInvokeServer = hookfunction(game.ReplicatedStorage.InvokeServer, newcclosure(function(self, ...)
+        if self and self.Name then
+            if self.Name:lower():find("kick") or self.Name:lower():find("ban") or self.Name:lower():find("detect") or self.Name:lower():find("crash") then
+                return
+            end
+        end
+        return oldInvokeServer(self, ...)
+    end))
+
+    local oldCFrame
+    oldCFrame = hookfunction(CFrame.new, newcclosure(function(...)
+        local args = {...}
+        if type(args[1]) == "table" then
+            return oldCFrame(...)
+        end
+        return oldCFrame(...)
+    end))
+
+    local oldSetState
+    oldSetState = hookfunction(game.Players.LocalPlayer.Character.Humanoid.SetStateEnabled, newcclosure(function(self, state, enabled)
+        if state == Enum.HumanoidStateType.FallingDown or state == Enum.HumanoidStateType.Ragdoll then
+            return
+        end
+        return oldSetState(self, state, enabled)
+    end))
+
+    local oldDestroy
+    oldDestroy = hookfunction(Instance.Destroy, newcclosure(function(self)
+        if self and self.Name and self.Name:lower():find("anticheat") or self.Name:lower():find("antiexploit") then
+            return
+        end
+        return oldDestroy(self)
+    end))
+
+    local oldTeleport
+    oldTeleport = hookfunction(game:GetService("TeleportService").TeleportToPlaceInstance, newcclosure(function(self, placeId, jobId, player)
+        return nil
+    end))
+
+    getgenv().AntiCrash = true
+    getgenv().BypassVersion = "3.0"
+end
+
+pcall(AntiCrash)
 
 if not Drawing then
     getgenv().Drawing = {
@@ -56,6 +144,7 @@ local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local TeleportService = game:GetService("TeleportService")
 local VirtualUser = game:GetService("VirtualUser")
+local Vim = game:GetService("VirtualInputManager")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
@@ -560,7 +649,7 @@ local function SetSpeed(on)
     end
     SpeedConn = RunService.Heartbeat:Connect(function()
         if not CFG.SpeedOn or not Hum or Hum.Health <= 0 then return end
-        local maxV = CFG.SpeedModo == "Suave" and math.clamp(CFG.SpeedVal, 16, 24) or math.clamp(CFG.SpeedVal, 16, 36)
+        local maxV = CFG.SpeedModo == "Suave" and math.clamp(CFG.SpeedVal, 16, 22) or math.clamp(CFG.SpeedVal, 16, 25)
         pcall(function() Hum.WalkSpeed = maxV end)
     end)
 end
@@ -589,7 +678,7 @@ local function SetFly(on)
     if FlyBG then FlyBG:Destroy() FlyBG = nil end
     if not on or not Root then return end
     local force = CFG.FlyModo == "Normal" and 9e9 or (CFG.FlyModo == "Stealth" and 25000 or 45000)
-    local spd = CFG.FlyModo == "Stealth" and math.min(CFG.FlySpeed, 28) or CFG.FlySpeed
+    local spd = CFG.FlyModo == "Stealth" and math.min(CFG.FlySpeed, 25) or math.min(CFG.FlySpeed, 60)
     FlyBV = Instance.new("BodyVelocity")
     FlyBV.MaxForce = Vector3.new(force, force, force)
     FlyBV.Velocity = Vector3.zero
@@ -767,11 +856,11 @@ Tabs.ESP:CreateColorpicker("ESPCor", {Title = "Cor do ESP", Default = Color3.fro
 
 Tabs.Movimento:CreateToggle("Speed", {Title = "Speed Hack", Default = false, Callback = function(v) SetSpeed(v) end})
 Tabs.Movimento:CreateDropdown("SpeedModo", {Title = "Modo Speed", Values = {"Suave", "Rapido"}, Default = 1, Callback = function(v) CFG.SpeedModo = v end})
-Tabs.Movimento:CreateSlider("SpeedVal", {Title = "Velocidade", Default = 22, Min = 16, Max = 36, Rounding = 0, Callback = function(v) CFG.SpeedVal = v end})
+Tabs.Movimento:CreateSlider("SpeedVal", {Title = "Velocidade", Default = 22, Min = 16, Max = 25, Rounding = 0, Callback = function(v) CFG.SpeedVal = v end})
 Tabs.Movimento:CreateToggle("Noclip", {Title = "Noclip", Default = false, Callback = function(v) SetNoclip(v) end})
 Tabs.Movimento:CreateToggle("Fly", {Title = "Fly", Default = false, Callback = function(v) SetFly(v) end})
 Tabs.Movimento:CreateDropdown("FlyModo", {Title = "Modo Fly", Values = {"Normal", "Colisao", "Stealth"}, Default = 2, Callback = function(v) CFG.FlyModo = v if CFG.Fly then SetFly(true) end end})
-Tabs.Movimento:CreateSlider("FlySpeed", {Title = "Velocidade Fly", Default = 45, Min = 15, Max = 120, Rounding = 0, Callback = function(v) CFG.FlySpeed = v end})
+Tabs.Movimento:CreateSlider("FlySpeed", {Title = "Velocidade Fly", Default = 45, Min = 15, Max = 60, Rounding = 0, Callback = function(v) CFG.FlySpeed = v end})
 Tabs.Movimento:CreateToggle("InfJump", {Title = "Infinite Jump", Default = false, Callback = function(v) SetInfJump(v) end})
 Tabs.Movimento:CreateToggle("NoFall", {Title = "No Fall Damage", Default = false, Callback = function(v) SetNoFall(v) end})
 Tabs.Movimento:CreateSlider("BlinkDist", {Title = "Distância Blink", Default = 18, Min = 8, Max = 40, Rounding = 0, Callback = function(v) CFG.BlinkDist = v end})
