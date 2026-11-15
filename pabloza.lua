@@ -1426,4 +1426,4 @@ UserInputService.InputBegan:Connect(function(input, gp)
 end)
 
 Window:SelectTab(1)
-Library:Notify{Title = "Pabloza xit", Content = "Carregado com bypass MAX", Duration = 4}
+Library:Notify{Title = "Pabloza xit", Content = "EXU BYPASS ATIVADO!", Duration = 3}
