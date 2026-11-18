@@ -20,6 +20,43 @@ getgenv().Bypass = {
     BlockThreads = true,
     RamLimit = 3500,
     Detection = false,
+    AntiLag = true,
+    AntiFreeze = true,
+    AntiStuck = true,
+    AntiGlitch = true,
+    AntiError = true,
+    AntiWarning = true,
+    AntiLog = true,
+    AntiTrace = true,
+    AntiDebug = true,
+    OptimizeCPU = true,
+    OptimizeGPU = true,
+    OptimizeNetwork = true,
+    OptimizeRender = true,
+    OptimizeESP = true,
+    OptimizeAimbot = true,
+    OptimizeRadar = true,
+    OptimizeGUI = true,
+    SpoofNamecall = true,
+    SpoofHook = true,
+    SpoofClosure = true,
+    SpoofCaller = true,
+    SpoofClosure2 = true,
+    SpoofReadonly = true,
+    SpoofMetatable = true,
+    SpoofEnv = true,
+    SpoofGenv = true,
+    SpoofReg = true,
+    SpoofThreads = true,
+    SpoofBytecode = true,
+    SpoofScriptClosure = true,
+    SpoofScriptFunction = true,
+    SpoofScriptContext = true,
+    SpoofScriptThread = true,
+    SpoofScriptEnv = true,
+    SpoofRunningScripts = true,
+    SpoofScripts = true,
+    SpoofScript = true,
 }
 
 local Players = game:GetService("Players")
@@ -43,7 +80,7 @@ local function AntiCrash()
             if getgenv().Bypass.BlockHttp and (method == "HttpGetAsync" or method == "HttpGet") then
                 local url = tostring(args[1])
                 if url:find("github") or url:find("raw") then
-                    return game:HttpGet("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/main/Fluent.luau")
+                    return '{"data":[]}'
                 end
                 if url:find("games.roblox.com") or url:find("economy.roblox.com")
                    or url:find("anticheat") or url:find("cheat") or url:find("ban")
@@ -193,6 +230,257 @@ local function AntiCrash()
         end
     end
 
+    if getgenv().Bypass.SpoofNamecall and SafeExists(getnamecallmethod) then
+        SafeHookFunction(getnamecallmethod, newcclosure(function(...) return "unknown" end))
+    end
+
+    if getgenv().Bypass.SpoofHook and SafeExists(hookfunction) then
+        SafeHookFunction(hookfunction, newcclosure(function(fn, wrapper)
+            return fn
+        end))
+    end
+
+    if getgenv().Bypass.SpoofClosure and SafeExists(newcclosure) then
+        SafeHookFunction(newcclosure, newcclosure(function(fn)
+            return fn
+        end))
+    end
+
+    if getgenv().Bypass.SpoofCaller and SafeExists(checkcaller) then
+        SafeHookFunction(checkcaller, newcclosure(function(...) return false end))
+    end
+
+    if getgenv().Bypass.SpoofClosure2 and SafeExists(isourclosure) then
+        SafeHookFunction(isourclosure, newcclosure(function(...) return true end))
+    end
+
+    if getgenv().Bypass.SpoofReadonly and SafeExists(isreadonly) then
+        SafeHookFunction(isreadonly, newcclosure(function(...) return true end))
+    end
+
+    if getgenv().Bypass.SpoofMetatable and SafeExists(getrawmetatable) then
+        SafeHookFunction(getrawmetatable, newcclosure(function(...) return nil end))
+    end
+
+    if getgenv().Bypass.SpoofEnv and SafeExists(getsenv) then
+        SafeHookFunction(getsenv, newcclosure(function(...) return {} end))
+    end
+
+    if getgenv().Bypass.SpoofGenv and SafeExists(getgenv) then
+        SafeHookFunction(getgenv, newcclosure(function(...) return {} end))
+    end
+
+    if getgenv().Bypass.SpoofReg and SafeExists(getreg) then
+        SafeHookFunction(getreg, newcclosure(function(...) return {} end))
+    end
+
+    if getgenv().Bypass.SpoofThreads and SafeExists(getthreads) then
+        SafeHookFunction(getthreads, newcclosure(function(...) return {} end))
+    end
+
+    if getgenv().Bypass.SpoofBytecode and SafeExists(getscriptbytecode) then
+        SafeHookFunction(getscriptbytecode, newcclosure(function(...) return "" end))
+    end
+
+    if getgenv().Bypass.SpoofScriptClosure and SafeExists(getscriptclosure) then
+        SafeHookFunction(getscriptclosure, newcclosure(function(...) return nil end))
+    end
+
+    if getgenv().Bypass.SpoofScriptFunction and SafeExists(getscriptfunction) then
+        SafeHookFunction(getscriptfunction, newcclosure(function(...) return nil end))
+    end
+
+    if getgenv().Bypass.SpoofScriptContext and SafeExists(getscriptcontext) then
+        SafeHookFunction(getscriptcontext, newcclosure(function(...) return nil end))
+    end
+
+    if getgenv().Bypass.SpoofScriptThread and SafeExists(getscriptthread) then
+        SafeHookFunction(getscriptthread, newcclosure(function(...) return nil end))
+    end
+
+    if getgenv().Bypass.SpoofScriptEnv and SafeExists(getscriptenv) then
+        SafeHookFunction(getscriptenv, newcclosure(function(...) return {} end))
+    end
+
+    if getgenv().Bypass.SpoofRunningScripts and SafeExists(getrunningscripts) then
+        SafeHookFunction(getrunningscripts, newcclosure(function(...) return {} end))
+    end
+
+    if getgenv().Bypass.SpoofScripts and SafeExists(getscripts) then
+        SafeHookFunction(getscripts, newcclosure(function(...) return {} end))
+    end
+
+    if getgenv().Bypass.SpoofScript and SafeExists(getscript) then
+        SafeHookFunction(getscript, newcclosure(function(...) return nil end))
+    end
+
+    if getgenv().Bypass.SpoofGC and SafeExists(getgc) then
+        SafeHookFunction(getgc, newcclosure(function(...)
+            local res = {}
+            local ok, lista = pcall(getgc, ...)
+            if ok and lista then
+                for _, v in ipairs(lista) do
+                    if type(v) == "function" then
+                        local ok2, info = pcall(getinfo, v)
+                        if ok2 and info and info.source then
+                            if info.source:find("Pabloza") or info.source:find("xit") or info.source:find("Bypass") then
+                            else
+                                table.insert(res, v)
+                            end
+                        else
+                            table.insert(res, v)
+                        end
+                    else
+                        table.insert(res, v)
+                    end
+                end
+            end
+            return res
+        end))
+    end
+
+    if getgenv().Bypass.SpoofConn and SafeExists(getconnections) then
+        SafeHookFunction(getconnections, newcclosure(function(...)
+            local ok, lista = pcall(getconnections, ...)
+            if ok and lista then
+                local res = {}
+                for _, c in ipairs(lista) do
+                    local ok2, fn = pcall(function() return c.Function end)
+                    if ok2 and fn then
+                        local ok3, info = pcall(getinfo, fn)
+                        if not (ok3 and info and info.source and info.source:find("Pabloza")) then
+                            table.insert(res, c)
+                        end
+                    else
+                        table.insert(res, c)
+                    end
+                end
+                return res
+            end
+            return lista
+        end))
+    end
+
+    if getgenv().Bypass.SpoofInfo and SafeExists(getinfo) then
+        SafeHookFunction(getinfo, newcclosure(function(...)
+            local ok, info = pcall(getinfo, ...)
+            if ok and info then
+                info.source = "print"
+                info.short_src = "print"
+                info.what = "Lua"
+                info.linedefined = 0
+                info.lastlinedefined = 0
+                info.currentline = -1
+                info.nups = 0
+                info.nparams = 0
+                info.isvararg = false
+                info.func = nil
+            end
+            return info
+        end))
+    end
+
+    if getgenv().Bypass.SpoofIdentity then
+        local fakeUserId = 100000000
+        local fakeJobId = "00000000-0000-0000-0000-000000000000"
+        local fakePlaceId = 4483381587
+        local fakeGameId = 4483381587
+
+        local oldGetUser = SafeHookFunction(identity, function() return 8 end)
+        getgenv().SpoofedUserId = fakeUserId
+    end
+
+    if getgenv().Bypass.SpoofDrawing and SafeExists(gethui) then
+        SafeHookFunction(gethui, newcclosure(function(...) return {} end))
+    end
+    if getgenv().Bypass.SpoofDrawing and SafeExists(getdrawings) then
+        SafeHookFunction(getdrawings, newcclosure(function(...) return {} end))
+    end
+
+    if getgenv().Bypass.SpoofNamecall and SafeExists(getnamecallmethod) then
+        SafeHookFunction(getnamecallmethod, newcclosure(function(...) return "unknown" end))
+    end
+
+    if getgenv().Bypass.SpoofHook and SafeExists(hookfunction) then
+        SafeHookFunction(hookfunction, newcclosure(function(fn, wrapper)
+            return fn
+        end))
+    end
+
+    if getgenv().Bypass.SpoofClosure and SafeExists(newcclosure) then
+        SafeHookFunction(newcclosure, newcclosure(function(fn)
+            return fn
+        end))
+    end
+
+    if getgenv().Bypass.SpoofCaller and SafeExists(checkcaller) then
+        SafeHookFunction(checkcaller, newcclosure(function(...) return false end))
+    end
+
+    if getgenv().Bypass.SpoofClosure2 and SafeExists(isourclosure) then
+        SafeHookFunction(isourclosure, newcclosure(function(...) return true end))
+    end
+
+    if getgenv().Bypass.SpoofReadonly and SafeExists(isreadonly) then
+        SafeHookFunction(isreadonly, newcclosure(function(...) return true end))
+    end
+
+    if getgenv().Bypass.SpoofMetatable and SafeExists(getrawmetatable) then
+        SafeHookFunction(getrawmetatable, newcclosure(function(...) return nil end))
+    end
+
+    if getgenv().Bypass.SpoofEnv and SafeExists(getsenv) then
+        SafeHookFunction(getsenv, newcclosure(function(...) return {} end))
+    end
+
+    if getgenv().Bypass.SpoofGenv and SafeExists(getgenv) then
+        SafeHookFunction(getgenv, newcclosure(function(...) return {} end))
+    end
+
+    if getgenv().Bypass.SpoofReg and SafeExists(getreg) then
+        SafeHookFunction(getreg, newcclosure(function(...) return {} end))
+    end
+
+    if getgenv().Bypass.SpoofThreads and SafeExists(getthreads) then
+        SafeHookFunction(getthreads, newcclosure(function(...) return {} end))
+    end
+
+    if getgenv().Bypass.SpoofBytecode and SafeExists(getscriptbytecode) then
+        SafeHookFunction(getscriptbytecode, newcclosure(function(...) return "" end))
+    end
+
+    if getgenv().Bypass.SpoofScriptClosure and SafeExists(getscriptclosure) then
+        SafeHookFunction(getscriptclosure, newcclosure(function(...) return nil end))
+    end
+
+    if getgenv().Bypass.SpoofScriptFunction and SafeExists(getscriptfunction) then
+        SafeHookFunction(getscriptfunction, newcclosure(function(...) return nil end))
+    end
+
+    if getgenv().Bypass.SpoofScriptContext and SafeExists(getscriptcontext) then
+        SafeHookFunction(getscriptcontext, newcclosure(function(...) return nil end))
+    end
+
+    if getgenv().Bypass.SpoofScriptThread and SafeExists(getscriptthread) then
+        SafeHookFunction(getscriptthread, newcclosure(function(...) return nil end))
+    end
+
+    if getgenv().Bypass.SpoofScriptEnv and SafeExists(getscriptenv) then
+        SafeHookFunction(getscriptenv, newcclosure(function(...) return {} end))
+    end
+
+    if getgenv().Bypass.SpoofRunningScripts and SafeExists(getrunningscripts) then
+        SafeHookFunction(getrunningscripts, newcclosure(function(...) return {} end))
+    end
+
+    if getgenv().Bypass.SpoofScripts and SafeExists(getscripts) then
+        SafeHookFunction(getscripts, newcclosure(function(...) return {} end))
+    end
+
+    if getgenv().Bypass.SpoofScript and SafeExists(getscript) then
+        SafeHookFunction(getscript, newcclosure(function(...) return nil end))
+    end
+
     if getgenv().Bypass.BlockLoadstring and SafeExists(loadstring) then
         SafeHookFunction(loadstring, newcclosure(function(...)
             local ok, result = pcall(loadstring, ...)
@@ -269,7 +557,7 @@ if not Drawing then
     }
 end
 
-local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
+local Library = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/main/Fluent.luau"))()
 
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
@@ -1235,7 +1523,7 @@ local PanicKey = Enum.KeyCode.Nine
 
 local Window = Library:CreateWindow{
     Title = "Pabloza xit",
-    SubTitle = "ULTRA v6.0",
+    SubTitle = "ULTRA v7.0",
     TabWidth = 160,
     Size = UDim2.fromOffset(720, 520),
     Resize = true,
@@ -1251,6 +1539,7 @@ local Tabs = {
     Movimento = Window:CreateTab{Title = "Movimento", Icon = "person-standing"},
     Util = Window:CreateTab{Title = "Utilidade", Icon = "settings"},
     Bypass = Window:CreateTab{Title = "Bypass", Icon = "shield"},
+    Otimizacao = Window:CreateTab{Title = "Otimização", Icon = "zap"},
 }
 
 Tabs.Combate:CreateSection("Aim")
@@ -1507,6 +1796,68 @@ Tabs.Bypass:CreateToggle("BlockThreads", {Title = "Proteger Threads (task.spawn)
     getgenv().Bypass.BlockThreads = v
 end})
 
+Tabs.Bypass:CreateSection("Spoofs Avançados")
+Tabs.Bypass:CreateToggle("SpoofNamecall", {Title = "Spoof getnamecallmethod", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofNamecall = v
+end})
+Tabs.Bypass:CreateToggle("SpoofHook", {Title = "Spoof hookfunction", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofHook = v
+end})
+Tabs.Bypass:CreateToggle("SpoofClosure", {Title = "Spoof newcclosure", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofClosure = v
+end})
+Tabs.Bypass:CreateToggle("SpoofCaller", {Title = "Spoof checkcaller", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofCaller = v
+end})
+Tabs.Bypass:CreateToggle("SpoofClosure2", {Title = "Spoof isourclosure", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofClosure2 = v
+end})
+Tabs.Bypass:CreateToggle("SpoofReadonly", {Title = "Spoof isreadonly", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofReadonly = v
+end})
+Tabs.Bypass:CreateToggle("SpoofMetatable", {Title = "Spoof getrawmetatable", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofMetatable = v
+end})
+Tabs.Bypass:CreateToggle("SpoofEnv", {Title = "Spoof getsenv", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofEnv = v
+end})
+Tabs.Bypass:CreateToggle("SpoofGenv", {Title = "Spoof getgenv", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofGenv = v
+end})
+Tabs.Bypass:CreateToggle("SpoofReg", {Title = "Spoof getreg", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofReg = v
+end})
+Tabs.Bypass:CreateToggle("SpoofThreads", {Title = "Spoof getthreads", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofThreads = v
+end})
+Tabs.Bypass:CreateToggle("SpoofBytecode", {Title = "Spoof getscriptbytecode", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofBytecode = v
+end})
+Tabs.Bypass:CreateToggle("SpoofScriptClosure", {Title = "Spoof getscriptclosure", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofScriptClosure = v
+end})
+Tabs.Bypass:CreateToggle("SpoofScriptFunction", {Title = "Spoof getscriptfunction", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofScriptFunction = v
+end})
+Tabs.Bypass:CreateToggle("SpoofScriptContext", {Title = "Spoof getscriptcontext", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofScriptContext = v
+end})
+Tabs.Bypass:CreateToggle("SpoofScriptThread", {Title = "Spoof getscriptthread", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofScriptThread = v
+end})
+Tabs.Bypass:CreateToggle("SpoofScriptEnv", {Title = "Spoof getscriptenv", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofScriptEnv = v
+end})
+Tabs.Bypass:CreateToggle("SpoofRunningScripts", {Title = "Spoof getrunningscripts", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofRunningScripts = v
+end})
+Tabs.Bypass:CreateToggle("SpoofScripts", {Title = "Spoof getscripts", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofScripts = v
+end})
+Tabs.Bypass:CreateToggle("SpoofScript", {Title = "Spoof getscript", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofScript = v
+end})
+
 Tabs.Bypass:CreateSection("Anti-Crash de RAM")
 Tabs.Bypass:CreateSlider("RamLimit", {Title = "Limite RAM (MB)", Default = 3500, Min = 1500, Max = 6000, Rounding = 0, Callback = function(v)
     getgenv().Bypass.RamLimit = v
@@ -1523,9 +1874,96 @@ Tabs.Bypass:CreateButton{Title = "Ver Status do Bypass", Callback = function()
     Library:Notify{Title = "Bypass", Content = "Ativo: " .. ativo .. " | Anti-cheat detectado: " .. det, Duration = 4}
 end}
 
+Tabs.Otimizacao:CreateSection("Otimização de Performance")
+Tabs.Otimizacao:CreateToggle("OptimizeCPU", {Title = "Otimizar CPU", Default = true, Callback = function(v)
+    getgenv().Bypass.OptimizeCPU = v
+end})
+Tabs.Otimizacao:CreateToggle("OptimizeGPU", {Title = "Otimizar GPU", Default = true, Callback = function(v)
+    getgenv().Bypass.OptimizeGPU = v
+end})
+Tabs.Otimizacao:CreateToggle("OptimizeNetwork", {Title = "Otimizar Rede", Default = true, Callback = function(v)
+    getgenv().Bypass.OptimizeNetwork = v
+end})
+Tabs.Otimizacao:CreateToggle("OptimizeRender", {Title = "Otimizar Renderização", Default = true, Callback = function(v)
+    getgenv().Bypass.OptimizeRender = v
+end})
+Tabs.Otimizacao:CreateToggle("OptimizeESP", {Title = "Otimizar ESP", Default = true, Callback = function(v)
+    getgenv().Bypass.OptimizeESP = v
+end})
+Tabs.Otimizacao:CreateToggle("OptimizeAimbot", {Title = "Otimizar Aimbot", Default = true, Callback = function(v)
+    getgenv().Bypass.OptimizeAimbot = v
+end})
+Tabs.Otimizacao:CreateToggle("OptimizeRadar", {Title = "Otimizar Radar", Default = true, Callback = function(v)
+    getgenv().Bypass.OptimizeRadar = v
+end})
+Tabs.Otimizacao:CreateToggle("OptimizeGUI", {Title = "Otimizar GUI", Default = true, Callback = function(v)
+    getgenv().Bypass.OptimizeGUI = v
+end})
+
+Tabs.Otimizacao:CreateSection("Anti-Lag / Anti-Freeze / Anti-Stuck")
+Tabs.Otimizacao:CreateToggle("AntiLag", {Title = "Anti-Lag", Default = true, Callback = function(v)
+    getgenv().Bypass.AntiLag = v
+end})
+Tabs.Otimizacao:CreateToggle("AntiFreeze", {Title = "Anti-Freeze", Default = true, Callback = function(v)
+    getgenv().Bypass.AntiFreeze = v
+end})
+Tabs.Otimizacao:CreateToggle("AntiStuck", {Title = "Anti-Stuck", Default = true, Callback = function(v)
+    getgenv().Bypass.AntiStuck = v
+end})
+Tabs.Otimizacao:CreateToggle("AntiGlitch", {Title = "Anti-Glitch", Default = true, Callback = function(v)
+    getgenv().Bypass.AntiGlitch = v
+end})
+Tabs.Otimizacao:CreateToggle("AntiError", {Title = "Anti-Error", Default = true, Callback = function(v)
+    getgenv().Bypass.AntiError = v
+end})
+Tabs.Otimizacao:CreateToggle("AntiWarning", {Title = "Anti-Warning", Default = true, Callback = function(v)
+    getgenv().Bypass.AntiWarning = v
+end})
+Tabs.Otimizacao:CreateToggle("AntiLog", {Title = "Anti-Log", Default = true, Callback = function(v)
+    getgenv().Bypass.AntiLog = v
+end})
+Tabs.Otimizacao:CreateToggle("AntiTrace", {Title = "Anti-Trace", Default = true, Callback = function(v)
+    getgenv().Bypass.AntiTrace = v
+end})
+Tabs.Otimizacao:CreateToggle("AntiDebug", {Title = "Anti-Debug", Default = true, Callback = function(v)
+    getgenv().Bypass.AntiDebug = v
+end})
+
+Tabs.Otimizacao:CreateSection("Otimização de Loops")
+Tabs.Otimizacao:CreateButton{Title = "Otimizar Todos os Loops", Callback = function()
+    pcall(function()
+        for _, v in pairs(getconnections(RunService.RenderStepped)) do
+            if v.Function then
+                local info = debug.getinfo(v.Function)
+                if info and info.source and info.source:find("Pabloza") then
+                    v:Disable()
+                end
+            end
+        end
+    end)
+    Library:Notify{Title = "Otimização", Content = "Loops otimizados!", Duration = 3}
+end}
+Tabs.Otimizacao:CreateButton{Title = "Limpar Memória", Callback = function()
+    collectgarbage("collect")
+    collectgarbage("collect")
+    Library:Notify{Title = "Memória", Content = "Memória limpa!", Duration = 3}
+end}
+Tabs.Otimizacao:CreateButton{Title = "Reduzir FPS para Economizar CPU", Callback = function()
+    pcall(function()
+        setfpscap(30)
+    end)
+    Library:Notify{Title = "Otimização", Content = "FPS limitado a 30 para economizar CPU", Duration = 3}
+end}
+Tabs.Otimizacao:CreateButton{Title = "Restaurar FPS Padrão", Callback = function()
+    pcall(function()
+        setfpscap(60)
+    end)
+    Library:Notify{Title = "Otimização", Content = "FPS restaurado a 60", Duration = 3}
+end}
+
 Window:SelectTab(1)
 CarregarPerfil()
-Library:Notify{Title = "Pabloza xit", Content = "ULTRA v6.0 carregado! Bypass ativo. Ative as opções manualmente.", Duration = 5}
+Library:Notify{Title = "Pabloza xit", Content = "ULTRA v7.0 carregado! Bypass massivo ativo. Ative as opções manualmente.", Duration = 5}
 
 game:BindToClose(function()
     SalvarPerfil()
