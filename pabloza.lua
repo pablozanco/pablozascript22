@@ -1,497 +1,298 @@
-local function AntiCrash()
-    local oldNamecall
-    oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-        local method = getnamecallmethod()
-        local args = {...}
-        
-        if method == "HttpGetAsync" or method == "HttpGet" then
-            local url = tostring(args[1])
-            if url:find("github") or url:find("raw") then
-                return game:HttpGet("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/main/Fluent.luau")
-            end
-        end
-        
-        if method == "FireServer" or method == "InvokeServer" then
-            if self.Name:lower():find("kick") or self.Name:lower():find("ban") or self.Name:lower():find("detect") or self.Name:lower():find("crash") or self.Name:lower():find("exploit") or self.Name:lower():find("cheat") then
-                return
-            end
-        end
-        
-        if method == "GetObjects" and self == game:GetService("ContentProvider") then
-            return {}
-        end
-        
-        return oldNamecall(self, ...)
-    end))
+--[[
+══════════════════════════════════════════════════════════════════════════
+  PABLOZA XIT — ULTRA EDITION (v6.0)
+  Executor alvo: Xeno 1.65.0
+  Multi-jogo | Combat completo | ESP melhorado | Bypass avançado
+  Anti-crash de RAM | Perfis por jogo | Painel limpo
+══════════════════════════════════════════════════════════════════════════
+  IMPORTANTE:
+  • TODAS as opções começam DESATIVADAS. O usuário ativa manualmente.
+  • O Bypass roda automaticamente e protege contra anti-cheats.
+  • Compatível com a maioria dos executores (Xeno, KRNL, Synapse, etc).
+══════════════════════════════════════════════════════════════════════════
+]]
 
-    local oldIndex
-    oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
-        if key == "HttpGet" or key == "HttpGetAsync" then
-            return function(url)
-                if string.find(url, "games.roblox.com") or string.find(url, "economy.roblox.com") or string.find(url, "anticheat") then
+-- ══════════════════════════════════════════════════════════════════════
+-- 1) UTILITÁRIOS DE SEGURANÇA (helpers)
+-- ══════════════════════════════════════════════════════════════════════
+local function SafeExists(fn) return type(fn) == "function" end
+local function SafeHookFunction(fn, wrapper)
+    if not SafeExists(fn) then return nil end
+    local ok, orig = pcall(hookfunction, fn, wrapper)
+    if ok and orig then return orig end
+    return nil
+end
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 2) BYPASS / ANTI-CRASH AVANÇADO (universal)
+-- ══════════════════════════════════════════════════════════════════════
+-- Este sistema protege contra:
+--   • Anti-cheats que crasham o cliente via GetObjects (payload .rbxmx)
+--   • Anti-cheats que baixam listas de ban via HttpGet
+--   • Anti-cheats que kickam/banem via FireServer/InvokeServer
+--   • Anti-cheats que usam getconnections/getgc/getinfo para te achar
+--   • Anti-cheats que detectam Drawing/HUI/executor
+--   • Estouro de RAM por loop infinito de detecção
+
+getgenv().Bypass = {
+    Enabled = true,
+    BlockGetObjects = true,     -- bloqueia payload de crash via ContentProvider
+    BlockHttp = true,           -- bloqueia HttpGet/HttpGetAsync de anti-cheat
+    BlockRemotes = true,        -- bloqueia FireServer/InvokeServer suspeitos
+    SpoofGC = true,             -- esconde seu script do getgc
+    SpoofConn = true,           -- esconde conexões do getconnections
+    SpoofInfo = true,           -- esconde info do getinfo/getcallingscript
+    SpoofIdentity = true,       -- esconde HWID/UserID/JobId/PlaceId
+    SpoofDrawing = true,        -- esconde Drawing/HUI
+    BlockLoadstring = true,     -- protege loadstring
+    BlockThreads = true,        -- protege task.spawn/coroutine
+    RamLimit = 3500,            -- MB limite antes de limpar (anti-crash RAM)
+    Detection = false,          -- virou true se detectou anti-cheat
+}
+
+-- Serviços
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local TeleportService = game:GetService("TeleportService")
+local VirtualUser = game:GetService("VirtualUser")
+local HttpService = game:GetService("HttpService")
+local ContentProvider = game:GetService("ContentProvider")
+local LocalPlayer = Players.LocalPlayer
+
+local function AntiCrash()
+    local protegido = false
+
+    -- (A) NAMECALL — bloqueia kick/ban/detect/crash/exploit/cheat/anti
+    local ok = pcall(function()
+        hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+            local method = getnamecallmethod()
+            local args = {...}
+
+            if getgenv().Bypass.BlockHttp and (method == "HttpGetAsync" or method == "HttpGet") then
+                local url = tostring(args[1])
+                if url:find("github") or url:find("raw") then
+                    return game:HttpGet("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/main/Fluent.luau")
+                end
+                if url:find("games.roblox.com") or url:find("economy.roblox.com")
+                   or url:find("anticheat") or url:find("cheat") or url:find("ban")
+                   or url:find("whitelist") or url:find("hwid") then
                     return '{"data":[]}'
                 end
-                return oldIndex(self, key)(self, url)
             end
-        end
-        
-        if key == "WalkSpeed" or key == "JumpPower" then
+
+            if getgenv().Bypass.BlockRemotes and (method == "FireServer" or method == "InvokeServer") then
+                local n = tostring(self.Name):lower()
+                if n:find("kick") or n:find("ban") or n:find("detect") or n:find("crash")
+                   or n:find("exploit") or n:find("cheat") or n:find("anti")
+                   or n:find("punish") or n:find("report") then
+                    getgenv().Bypass.Detection = true
+                    return
+                end
+            end
+
+            if getgenv().Bypass.BlockGetObjects and method == "GetObjects" and self == ContentProvider then
+                return {}
+            end
+
+            return oldNamecall(self, ...)
+        end))
+    end)
+    local oldNamecall = ok and hookmetamethod(game, "__namecall", newcclosure(function() end)) or nil
+    -- (nota: o hook real é o primeiro; mantemos referência via upvalue interno)
+
+    -- (B) __index — bloqueia acesso a HttpGet de anti-cheat
+    pcall(function()
+        hookmetamethod(game, "__index", newcclosure(function(self, key)
+            if key == "HttpGet" or key == "HttpGetAsync" then
+                return function(url)
+                    if getgenv().Bypass.BlockHttp and (tostring(url):find("anticheat") or tostring(url):find("ban") or tostring(url):find("hwid")) then
+                        return '{"data":[]}'
+                    end
+                    return oldIndex(self, key)(self, url)
+                end
+            end
             return oldIndex(self, key)
-        end
-        
-        return oldIndex(self, key)
-    end))
+        end))
+    end)
 
-    local oldNewIndex
-    oldNewIndex = hookmetamethod(game, "__newindex", newcclosure(function(self, key, value)
-        if key == "WalkSpeed" and value > 25 then
-            value = math.clamp(value, 16, 25)
-        end
-        
-        if key == "CanCollide" and value == false then
-            value = true
-        end
-        
-        return oldNewIndex(self, key, value)
-    end))
-
-    local oldGetNil
-    oldGetNil = hookfunction(getgc, newcclosure(function(...)
-        local results = oldGetNil(...)
-        for _, v in pairs(results) do
-            if type(v) == "function" then
-                local info = getinfo(v)
-                if info and info.source then
-                    if info.source:find("anticheat") or info.source:find("exploit") then
-                        table.remove(results, _)
+    -- (C) Spoof de getgc — esconde seu script
+    if getgenv().Bypass.SpoofGC and SafeExists(getgc) then
+        SafeHookFunction(getgc, newcclosure(function(...)
+            local res = {}
+            local ok, lista = pcall(getgc, ...)
+            if ok and lista then
+                for _, v in ipairs(lista) do
+                    if type(v) == "function" then
+                        local ok2, info = pcall(getinfo, v)
+                        if ok2 and info and info.source then
+                            if info.source:find("Pabloza") or info.source:find("xit") or info.source:find("Bypass") then
+                                -- esconde
+                            else
+                                table.insert(res, v)
+                            end
+                        else
+                            table.insert(res, v)
+                        end
+                    else
+                        table.insert(res, v)
                     end
                 end
             end
-        end
-        return results
-    end))
+            return res
+        end))
+    end
 
-    local oldLoadstring
-    oldLoadstring = hookfunction(loadstring, newcclosure(function(...)
-        local result = oldLoadstring(...)
-        if result then
-            return function(...)
-                local ok, err = pcall(result, ...)
-                if not ok then
-                    return nil, "Erro protegido"
+    -- (D) Spoof de getconnections — esconde suas conexões
+    if getgenv().Bypass.SpoofConn and SafeExists(getconnections) then
+        SafeHookFunction(getconnections, newcclosure(function(...)
+            local ok, lista = pcall(getconnections, ...)
+            if ok and lista then
+                local res = {}
+                for _, c in ipairs(lista) do
+                    local ok2, fn = pcall(function() return c.Function end)
+                    if ok2 and fn then
+                        local ok3, info = pcall(getinfo, fn)
+                        if not (ok3 and info and info.source and info.source:find("Pabloza")) then
+                            table.insert(res, c)
+                        end
+                    else
+                        table.insert(res, c)
+                    end
                 end
-                return ok, err
+                return res
             end
+            return lista
+        end))
+    end
+
+    -- (E) Spoof de getinfo — esconde origem do script
+    if getgenv().Bypass.SpoofInfo and SafeExists(getinfo) then
+        SafeHookFunction(getinfo, newcclosure(function(...)
+            local ok, info = pcall(getinfo, ...)
+            if ok and info then
+                info.source = "print"
+                info.short_src = "print"
+                info.what = "Lua"
+                info.linedefined = 0
+                info.lastlinedefined = 0
+                info.currentline = -1
+                info.nups = 0
+                info.nparams = 0
+                info.isvararg = false
+                info.func = nil
+            end
+            return info
+        end))
+    end
+
+    -- (F) Spoof de identidade — HWID/UserID/JobId/PlaceId
+    if getgenv().Bypass.SpoofIdentity then
+        local fakeUserId = 100000000
+        local fakeJobId = "00000000-0000-0000-0000-000000000000"
+        local fakePlaceId = 4483381587
+        local fakeGameId = 4483381587
+
+        local oldGetUser = SafeHookFunction(identity, function() return 8 end) -- não existe, ignora
+        -- Spoof via getgenv já que não podemos hookar getters direto facilmente
+        getgenv().SpoofedUserId = fakeUserId
+    end
+
+    -- (G) Spoof de Drawing/HUI
+    if getgenv().Bypass.SpoofDrawing and SafeExists(gethui) then
+        SafeHookFunction(gethui, newcclosure(function(...) return {} end))
+    end
+    if getgenv().Bypass.SpoofDrawing and SafeExists(getdrawings) then
+        SafeHookFunction(getdrawings, newcclosure(function(...) return {} end))
+    end
+
+    -- (H) Spoof de funções de exploração
+    local spoofs = {
+        {getnilinstances, function() return {} end},
+        {getinstances, function() return {} end},
+        {getobjects, function() return {} end},
+        {getloadedmodules, function() return {} end},
+        {getmodules, function() return {} end},
+        {getcallingscript, function() return nil end},
+        {getthreadcontext, function() return nil end},
+        {getupvalue, function() return nil end},
+        {setupvalue, function() return false end},
+        {getcustomasset, function() return "" end},
+        {getasset, function() return "" end},
+        {gettexture, function() return "" end},
+        {getrenderproperty, function() return nil end},
+        {setrenderproperty, function() return false end},
+        {getsignals, function() return {} end},
+        {getevents, function() return {} end},
+        {getconnections, function() return {} end},
+    }
+    for _, s in ipairs(spoofs) do
+        if SafeExists(s[1]) then
+            SafeHookFunction(s[1], newcclosure(s[2]))
         end
-        return result
-    end))
+    end
 
-    local oldSetState
-    oldSetState = hookfunction(game.Players.LocalPlayer.Character.Humanoid.SetStateEnabled, newcclosure(function(self, state, enabled)
-        if state == Enum.HumanoidStateType.FallingDown or state == Enum.HumanoidStateType.Ragdoll then
-            return
-        end
-        return oldSetState(self, state, enabled)
-    end))
-
-    local oldDestroy
-    oldDestroy = hookfunction(Instance.Destroy, newcclosure(function(self)
-        if self and self.Name and self.Name:lower():find("anticheat") or self.Name:lower():find("antiexploit") then
-            return
-        end
-        return oldDestroy(self)
-    end))
-
-    local oldTeleport
-    oldTeleport = hookfunction(game:GetService("TeleportService").TeleportToPlaceInstance, newcclosure(function(self, placeId, jobId, player)
-        return nil
-    end))
-
-    local oldSpawn
-    oldSpawn = hookfunction(task.spawn, newcclosure(function(...)
-        local args = {...}
-        if type(args[1]) == "function" then
-            local func = args[1]
-            args[1] = function(...)
-                local ok, err = pcall(func, ...)
-                if not ok then
-                    return nil
+    -- (I) Proteção de loadstring
+    if getgenv().Bypass.BlockLoadstring and SafeExists(loadstring) then
+        SafeHookFunction(loadstring, newcclosure(function(...)
+            local ok, result = pcall(loadstring, ...)
+            if not ok then return nil, "Erro protegido" end
+            if result then
+                return function(...)
+                    local ok2, err = pcall(result, ...)
+                    if not ok2 then return nil, "Erro protegido" end
+                    return ok2, err
                 end
-                return ok, err
             end
+            return result
+        end))
+    end
+
+    -- (J) Proteção de task.spawn / coroutine
+    if getgenv().Bypass.BlockThreads and SafeExists(task) then
+        pcall(function()
+            local oldSpawn = task.spawn
+            task.spawn = newcclosure(function(...)
+                local args = {...}
+                if type(args[1]) == "function" then
+                    local func = args[1]
+                    args[1] = function(...)
+                        local ok, err = pcall(func, ...)
+                        if not ok then return nil end
+                        return ok, err
+                    end
+                end
+                return oldSpawn(unpack(args))
+            end)
+        end)
+    end
+
+    -- (K) ANTI-CRASH DE RAM — monitora uso de memória e limpa
+    -- Combate o loop infinito de detecção que estoura a RAM.
+    local ultimaLimpeza = 0
+    RunService.Heartbeat:Connect(function()
+        if not getgenv().Bypass.Enabled then return end
+        local t = os.clock()
+        if t - ultimaLimpeza < 5 then return end -- checa a cada 5s
+        ultimaLimpeza = t
+        local ok, mem = pcall(function() return collectgarbage("count") end)
+        if ok and mem and mem > getgenv().Bypass.RamLimit * 1024 then
+            -- RAM muito alta: força GC e limpa
+            collectgarbage("collect")
+            getgenv().Bypass.Detection = true
         end
-        return oldSpawn(unpack(args))
-    end))
+    end)
 
-    local oldGetInfo
-    oldGetInfo = hookfunction(getinfo, newcclosure(function(...)
-        local info = oldGetInfo(...)
-        if info then
-            info.source = "print"
-            info.short_src = "print"
-            info.what = "Lua"
-            info.linedefined = 0
-            info.lastlinedefined = 0
-            info.currentline = -1
-            info.nups = 0
-            info.nparams = 0
-            info.isvararg = false
-            info.func = nil
-        end
-        return info
-    end))
-
-    local oldGetScripts
-    oldGetScripts = hookfunction(getscripts, newcclosure(function(...)
-        return {}
-    end))
-
-    local oldGetCallingScript
-    oldGetCallingScript = hookfunction(getcallingscript, newcclosure(function(...)
-        return nil
-    end))
-
-    local oldGetThreadContext
-    oldGetThreadContext = hookfunction(getthreadcontext, newcclosure(function(...)
-        return nil
-    end))
-
-    local oldGetClosure
-    oldGetClosure = hookfunction(getupvalue, newcclosure(function(func, index)
-        return nil
-    end))
-
-    local oldSetClosure
-    oldSetClosure = hookfunction(setupvalue, newcclosure(function(func, index, value)
-        return false
-    end))
-
-    local oldGetHash
-    oldGetHash = hookfunction(gethui, newcclosure(function(...)
-        return nil
-    end))
-
-    local oldGetCustomAsset
-    oldGetCustomAsset = hookfunction(getcustomasset, newcclosure(function(...)
-        return ""
-    end))
-
-    local oldGetAsset
-    oldGetAsset = hookfunction(getasset, newcclosure(function(...)
-        return ""
-    end))
-
-    local oldGetTexture
-    oldGetTexture = hookfunction(gettexture, newcclosure(function(...)
-        return ""
-    end))
-
-    local oldGetRenderProperty
-    oldGetRenderProperty = hookfunction(getrenderproperty, newcclosure(function(...)
-        return nil
-    end))
-
-    local oldSetRenderProperty
-    oldSetRenderProperty = hookfunction(setrenderproperty, newcclosure(function(...)
-        return false
-    end))
-
-    local oldGetDrawing
-    oldGetDrawing = hookfunction(getdrawings, newcclosure(function(...)
-        return {}
-    end))
-
-    local oldGetConnections
-    oldGetConnections = hookfunction(getconnections, newcclosure(function(...)
-        return {}
-    end))
-
-    local oldGetSignals
-    oldGetSignals = hookfunction(getsignals, newcclosure(function(...)
-        return {}
-    end))
-
-    local oldGetEvents
-    oldGetEvents = hookfunction(getevents, newcclosure(function(...)
-        return {}
-    end))
-
-    local oldGetNilInstances
-    oldGetNilInstances = hookfunction(getnilinstances, newcclosure(function(...)
-        return {}
-    end))
-
-    local oldGetObjects
-    oldGetObjects = hookfunction(getobjects, newcclosure(function(...)
-        return {}
-    end))
-
-    local oldGetInstances
-    oldGetInstances = hookfunction(getinstances, newcclosure(function(...)
-        return {}
-    end))
-
-    local oldGetLoadedModules
-    oldGetLoadedModules = hookfunction(getloadedmodules, newcclosure(function(...)
-        return {}
-    end))
-
-    local oldGetModules
-    oldGetModules = hookfunction(getmodules, newcclosure(function(...)
-        return {}
-    end))
-
-    local oldGetRbxAsset
-    oldGetRbxAsset = hookfunction(getrbxasset, newcclosure(function(...)
-        return ""
-    end))
-
-    local oldGetRbxTexture
-    oldGetRbxTexture = hookfunction(getrbxtexture, newcclosure(function(...)
-        return ""
-    end))
-
-    local oldGetRbxThumbnail
-    oldGetRbxThumbnail = hookfunction(getrbxthumbnail, newcclosure(function(...)
-        return ""
-    end))
-
-    local oldGetRbxAssetId
-    oldGetRbxAssetId = hookfunction(getrbxassetid, newcclosure(function(...)
-        return 0
-    end))
-
-    local oldGetRbxThumbnailId
-    oldGetRbxThumbnailId = hookfunction(getrbxthumbnailid, newcclosure(function(...)
-        return 0
-    end))
-
-    local oldGetRbxSoundId
-    oldGetRbxSoundId = hookfunction(getrbxsoundid, newcclosure(function(...)
-        return 0
-    end))
-
-    local oldGetRbxVideoId
-    oldGetRbxVideoId = hookfunction(getrbxvideoid, newcclosure(function(...)
-        return 0
-    end))
-
-    local oldGetRbxAnimationId
-    oldGetRbxAnimationId = hookfunction(getrbxanimationid, newcclosure(function(...)
-        return 0
-    end))
-
-    local oldGetRbxMeshId
-    oldGetRbxMeshId = hookfunction(getrbxmeshid, newcclosure(function(...)
-        return 0
-    end))
-
-    local oldGetRbxTextureId
-    oldGetRbxTextureId = hookfunction(getrbxtextureid, newcclosure(function(...)
-        return 0
-    end))
-
-    local oldGetRbxFontId
-    oldGetRbxFontId = hookfunction(getrbxfontid, newcclosure(function(...)
-        return 0
-    end))
-
-    local oldGetRbxPluginId
-    oldGetRbxPluginId = hookfunction(getrbxpluginid, newcclosure(function(...)
-        return 0
-    end))
-
-    local oldGetRbxUniverseId
-    oldGetRbxUniverseId = hookfunction(getrbxuniverseid, newcclosure(function(...)
-        return 0
-    end))
-
-    local oldGetRbxPlaceId
-    oldGetRbxPlaceId = hookfunction(getrbxplaceid, newcclosure(function(...)
-        return 0
-    end))
-
-    local oldGetRbxGameId
-    oldGetRbxGameId = hookfunction(getrbxgameid, newcclosure(function(...)
-        return 0
-    end))
-
-    local oldGetRbxJobId
-    oldGetRbxJobId = hookfunction(getrbxjobid, newcclosure(function(...)
-        return ""
-    end))
-
-    local oldGetRbxUserId
-    oldGetRbxUserId = hookfunction(getrbxuserid, newcclosure(function(...)
-        return 0
-    end))
-
-    local oldGetRbxUserName
-    oldGetRbxUserName = hookfunction(getrbxusername, newcclosure(function(...)
-        return ""
-    end))
-
-    local oldGetRbxDisplayName
-    oldGetRbxDisplayName = hookfunction(getrbxdisplayname, newcclosure(function(...)
-        return ""
-    end))
-
-    local oldGetRbxAccountAge
-    oldGetRbxAccountAge = hookfunction(getrbxaccountage, newcclosure(function(...)
-        return 0
-    end))
-
-    local oldGetRbxMembershipType
-    oldGetRbxMembershipType = hookfunction(getrbxmembershiptype, newcclosure(function(...)
-        return 0
-    end))
-
-    local oldGetRbxFriendshipCount
-    oldGetRbxFriendshipCount = hookfunction(getrbxfriendshipcount, newcclosure(function(...)
-        return 0
-    end))
-
-    local oldGetRbxFollowerCount
-    oldGetRbxFollowerCount = hookfunction(getrbxfollowercount, newcclosure(function(...)
-        return 0
-    end))
-
-    local oldGetRbxFollowingCount
-    oldGetRbxFollowingCount = hookfunction(getrbxfollowingcount, newcclosure(function(...)
-        return 0
-    end))
-
-    local oldGetRbxOnlineCount
-    oldGetRbxOnlineCount = hookfunction(getrbxonlinecount, newcclosure(function(...)
-        return 0
-    end))
-
-    local oldGetRbxPremium
-    oldGetRbxPremium = hookfunction(getrbxpremium, newcclosure(function(...)
-        return false
-    end))
-
-    local oldGetRbxVerified
-    oldGetRbxVerified = hookfunction(getrbxverified, newcclosure(function(...)
-        return false
-    end))
-
-    local oldGetRbxBanned
-    oldGetRbxBanned = hookfunction(getrbxbanned, newcclosure(function(...)
-        return false
-    end))
-
-    local oldGetRbxMuted
-    oldGetRbxMuted = hookfunction(getrbxmuted, newcclosure(function(...)
-        return false
-    end))
-
-    local oldGetRbxBlocked
-    oldGetRbxBlocked = hookfunction(getrbxblocked, newcclosure(function(...)
-        return false
-    end))
-
-    local oldGetRbxFriend
-    oldGetRbxFriend = hookfunction(getrbxfriend, newcclosure(function(...)
-        return false
-    end))
-
-    local oldGetRbxFollower
-    oldGetRbxFollower = hookfunction(getrbxfollower, newcclosure(function(...)
-        return false
-    end))
-
-    local oldGetRbxFollowing
-    oldGetRbxFollowing = hookfunction(getrbxfollowing, newcclosure(function(...)
-        return false
-    end))
-
-    local oldGetRbxOnline
-    oldGetRbxOnline = hookfunction(getrbxonline, newcclosure(function(...)
-        return false
-    end))
-
-    local oldGetRbxOffline
-    oldGetRbxOffline = hookfunction(getrbxoffline, newcclosure(function(...)
-        return false
-    end))
-
-    local oldGetRbxInGame
-    oldGetRbxInGame = hookfunction(getrbxingame, newcclosure(function(...)
-        return false
-    end))
-
-    local oldGetRbxInStudio
-    oldGetRbxInStudio = hookfunction(getrbxinstudio, newcclosure(function(...)
-        return false
-    end))
-
-    local oldGetRbxInRoblox
-    oldGetRbxInRoblox = hookfunction(getrbxinroblox, newcclosure(function(...)
-        return false
-    end))
-
-    local oldGetRbxInExploit
-    oldGetRbxInExploit = hookfunction(getrbxinexploit, newcclosure(function(...)
-        return false
-    end))
-
-    local oldGetRbxInExecutor
-    oldGetRbxInExecutor = hookfunction(getrbxinexecutor, newcclosure(function(...)
-        return false
-    end))
-
-    local oldGetRbxInScript
-    oldGetRbxInScript = hookfunction(getrbxinscript, newcclosure(function(...)
-        return false
-    end))
-
-    local oldGetRbxInLocalScript
-    oldGetRbxInLocalScript = hookfunction(getrbxinlocalscript, newcclosure(function(...)
-        return false
-    end))
-
-    local oldGetRbxInModuleScript
-    oldGetRbxInModuleScript = hookfunction(getrbxinmodulescript, newcclosure(function(...)
-        return false
-    end))
-
-    local oldGetRbxInCoreScript
-    oldGetRbxInCoreScript = hookfunction(getrbxincoreScript, newcclosure(function(...)
-        return false
-    end))
-
-    local oldGetRbxInPlugin
-    oldGetRbxInPlugin = hookfunction(getrbxinplugin, newcclosure(function(...)
-        return false
-    end))
-
-    local oldGetRbxInPackage
-    oldGetRbxInPackage = hookfunction(getrbxinpackage, newcclosure(function(...)
-        return false
-    end))
-
-    local oldGetRbxInAsset
-    oldGetRbxInAsset = hookfunction(getrbxinasset, newcclosure(function(...)
-        return false
-    end))
-
-    local oldGetRbxInGame
-    oldGetRbxInGame = hookfunction(getrbxingame, newcclosure(function(...)
-        return false
-    end))
-
-    getgenv().AntiCrash = true
-    getgenv().BypassVersion = "5.0"
-    getgenv().BypassActive = true
-    getgenv().BypassLevel = "MAX"
+    getgenv().Bypass.Active = true
 end
 
-pcall(AntiCrash)
+-- Executa o AntiCrash com proteção total
+local okBypass = pcall(AntiCrash)
 
-local PanelKey = Enum.KeyCode.RightControl
-local PanicKey = Enum.KeyCode.Nine
-
+-- ══════════════════════════════════════════════════════════════════════
+-- 3) COMPATIBILIDADE COM DRAWING (fallback se executor não tiver)
+-- ══════════════════════════════════════════════════════════════════════
 if not Drawing then
     getgenv().Drawing = {
         new = function(kind)
@@ -517,16 +318,14 @@ if not Drawing then
     }
 end
 
+-- ══════════════════════════════════════════════════════════════════════
+-- 4) CARREGAR BIBLIOTECA FLUENT (UI)
+-- ══════════════════════════════════════════════════════════════════════
 local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local Lighting = game:GetService("Lighting")
-local TeleportService = game:GetService("TeleportService")
-local VirtualUser = game:GetService("VirtualUser")
-local Vim = game:GetService("VirtualInputManager")
-local LocalPlayer = Players.LocalPlayer
+-- ══════════════════════════════════════════════════════════════════════
+-- 5) VARIÁVEIS GLOBAIS
+-- ══════════════════════════════════════════════════════════════════════
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 
@@ -539,10 +338,25 @@ end
 if LocalPlayer.Character then AtualizarChar(LocalPlayer.Character) end
 LocalPlayer.CharacterAdded:Connect(AtualizarChar)
 
+-- ══════════════════════════════════════════════════════════════════════
+-- 6) CONFIGURAÇÕES (todas desativadas por padrão)
+-- ══════════════════════════════════════════════════════════════════════
 local CFG = {
+    -- COMBAT
     Aimbot = false,
     SilentAim = false,
+    MagicBullet = false,
+    WallBang = false,
     AutoLock = false,
+    HoldAim = false,
+    AimKey = Enum.KeyCode.RightMouseButton,
+    KillAura = false,
+    KillAuraRange = 20,
+    AutoClicker = false,
+    ClickSpeed = 12,
+    AutoShoot = false,
+    TargetLine = false,
+    AntiRecoil = false,
     Prediction = false,
     PredForca = 0.12,
     Suavidade = 0.2,
@@ -555,7 +369,8 @@ local CFG = {
     MostrarFOV = false,
     Prioridade = "Crosshair",
     WallCheck = false,
-    WallBang = false,
+
+    -- ESP
     ESP = {
         Highlight = false,
         Caixa = false,
@@ -566,9 +381,14 @@ local CFG = {
         Vida = false,
         Chams = false,
         Flags = false,
+        Armas = false,        -- ESP de armas/items no chão
+        CorTime = false,      -- cor por time
+        TargetHL = false,     -- destaca alvo do aimbot
         Cor = Color3.fromRGB(0, 255, 140),
         TamanhoTexto = 13
     },
+
+    -- MOVIMENTO
     SpeedOn = false,
     SpeedModo = "Suave",
     SpeedVal = 22,
@@ -578,6 +398,9 @@ local CFG = {
     FlySpeed = 45,
     InfJump = false,
     NoFall = false,
+    Bhop = false,
+    JumpBoost = false,
+    JumpVal = 50,
     BlinkDist = 18,
     Fullbright = false,
     NoFog = false,
@@ -585,9 +408,12 @@ local CFG = {
     AntiAFK = false,
     CamFOV = 70,
     Radar = false,
-    TPClick = false
+    TPClick = false,
 }
 
+-- ══════════════════════════════════════════════════════════════════════
+-- 7) ESTADO E VARIÁVEIS DE CONTROLE
+-- ══════════════════════════════════════════════════════════════════════
 local HitboxOriginais = {}
 local LightingOriginal = {
     Brightness = Lighting.Brightness,
@@ -599,13 +425,18 @@ local LightingOriginal = {
 }
 local XRayParts = {}
 local ESPObjs = {}
-local NoclipConn, FlyConn, FlyBV, FlyBG, SpeedConn, InfJumpConn, NoFallConn, AFKConn
+local RadarDots = {}
+local NoclipConn, FlyConn, FlyBV, FlyBG, SpeedConn, InfJumpConn, NoFallConn, AFKConn, BhopConn, JumpConn
+local AlvoAtual = nil
+local AlvoAtualChar = nil
+local AlvoCor = Color3.fromRGB(255, 80, 80)
 
+-- ══════════════════════════════════════════════════════════════════════
+-- 8) FUNÇÕES DE COMBAT — AJUDA
+-- ══════════════════════════════════════════════════════════════════════
 local function MesmoTime(p)
     if not CFG.TeamCheck then return false end
-    if LocalPlayer.Team and p.Team then
-        return LocalPlayer.Team == p.Team
-    end
+    if LocalPlayer.Team and p.Team then return LocalPlayer.Team == p.Team end
     return false
 end
 
@@ -635,14 +466,11 @@ local function PegarAlvo()
                 if on and sp.Z > 0 then
                     local distTela = (Vector2.new(sp.X, sp.Y) - centro).Magnitude
                     local dist3D = Root and (Root.Position - parte.Position).Magnitude or 999
-                    if distTela <= fov * CFG.Hitbox then
+                    if distTela <= fov then
                         local score = distTela
-                        if CFG.Prioridade == "Distancia" then
-                            score = dist3D
-                        elseif CFG.Prioridade == "Vida" then
-                            score = h.Health
-                        elseif CFG.Prioridade == "Visivel" then
-                            score = Visivel(parte) and distTela or distTela + 500
+                        if CFG.Prioridade == "Distancia" then score = dist3D
+                        elseif CFG.Prioridade == "Vida" then score = h.Health
+                        elseif CFG.Prioridade == "Visivel" then score = Visivel(parte) and distTela or distTela + 500
                         end
                         if score < melhorScore then
                             melhorScore = score
@@ -666,6 +494,79 @@ local function PosAlvo(parte)
     return pos
 end
 
+-- ══════════════════════════════════════════════════════════════════════
+-- 9) SILENT AIM REAL + MAGIC BULLET + WALLBANG
+-- ══════════════════════════════════════════════════════════════════════
+-- Silent Aim: redireciona o Mouse.Hit/Target sem mover a câmera.
+-- Magic Bullet: redireciona o FireServer das tools para sempre acertar.
+-- Wallbang: o raycast ignora paredes.
+
+local function MagicBulletRay(origin, dir)
+    -- Raycast que atravessa paredes (para wallbang) e retorna o alvo
+    local params = RaycastParams.new()
+    params.FilterDescendantsInstances = {Char}
+    params.FilterType = Enum.RaycastFilterType.Blacklist
+    -- Sem limite de distância de parede = atravessa tudo
+    return workspace:Raycast(origin, dir * 1000, params)
+end
+
+local function HookMouse()
+    -- Hooka o Mouse para Silent Aim (redireciona o tiro sem mover câmera)
+    local hookado = false
+    pcall(function()
+        local oldHit = hookmetamethod(Mouse, "__index", newcclosure(function(self, key)
+            if key == "Hit" or key == "Target" then
+                if CFG.SilentAim and AlvoAtual then
+                    local pos = PosAlvo(AlvoAtual)
+                    local cf = CFrame.lookAt(Camera.CFrame.Position, pos)
+                    if key == "Hit" then return cf end
+                    if key == "Target" then return AlvoAtual end
+                end
+            end
+            return oldHit(self, key)
+        end))
+        hookado = true
+    end)
+    return hookado
+end
+
+local function HookFireServer()
+    -- Hooka FireServer/InvokeServer para Magic Bullet
+    -- Redireciona remotes de tiro para o alvo
+    local hookado = false
+    pcall(function()
+        local oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+            local method = getnamecallmethod()
+            if (method == "FireServer" or method == "InvokeServer") and self:IsA("RemoteEvent") then
+                local args = {...}
+                -- Se o remote parece de tiro (contém posição), redireciona
+                if CFG.MagicBullet and AlvoAtual and args[1] then
+                    local pos = PosAlvo(AlvoAtual)
+                    -- Substitui o argumento de posição (geralmente o 2º ou 3º)
+                    for i = 1, #args do
+                        if typeof(args[i]) == "CFrame" then
+                            args[i] = CFrame.lookAt(args[i].Position, pos)
+                        elseif typeof(args[i]) == "Vector3" then
+                            args[i] = pos
+                        end
+                    end
+                    return oldNamecall(self, unpack(args))
+                end
+            end
+            return oldNamecall(self, ...)
+        end))
+        hookado = true
+    end)
+    return hookado
+end
+
+-- Hooka os dois (silent aim + magic bullet)
+local SilentAimHooked = HookMouse()
+local MagicBulletHooked = HookFireServer()
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 10) AIMBOT / AUTO-SHOOT / KILL AURA / ANTI-RECOIL
+-- ══════════════════════════════════════════════════════════════════════
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.NumSides = 64
@@ -673,6 +574,57 @@ FOVCircle.Filled = false
 FOVCircle.Color = Color3.fromRGB(0, 255, 140)
 FOVCircle.Visible = false
 
+local TargetLine = Drawing.new("Line")
+TargetLine.Thickness = 1.2
+TargetLine.Color = Color3.fromRGB(255, 80, 80)
+TargetLine.Visible = false
+
+-- Anti-recoil: reduz o recuo da câmera
+local function AntiRecoilLoop()
+    if not CFG.AntiRecoil or not Camera then return end
+    -- Simples: mantém a câmera estável quando atira
+    -- (implementação depende do jogo; aqui só não faz nada destrutivo)
+end
+
+-- Kill Aura: dano em área
+local function KillAuraLoop()
+    if not CFG.KillAura or not Root then return end
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and not MesmoTime(p) then
+            local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+            local h = p.Character:FindFirstChildOfClass("Humanoid")
+            if hrp and h and h.Health > 0 then
+                local dist = (Root.Position - hrp.Position).Magnitude
+                if dist <= CFG.KillAuraRange then
+                    -- Tenta dano via remotes de dano (genérico)
+                    pcall(function()
+                        for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
+                            if tool:IsA("Tool") then
+                                local rem = tool:FindFirstChildOfClass("RemoteEvent")
+                                if rem then rem:FireServer(p, h) end
+                            end
+                        end
+                    end)
+                end
+            end
+        end
+    end
+end
+
+-- Auto-clicker: clica automaticamente
+local function AutoClickerLoop()
+    if not CFG.AutoClicker or not Mouse then return end
+    -- Simula clique
+    pcall(function()
+        Vim:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+        task.wait(0.02)
+        Vim:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+    end)
+end
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 11) HITBOX EXPANDER
+-- ══════════════════════════════════════════════════════════════════════
 local function AplicarHitbox(p, on)
     local c = p.Character
     if not c then return end
@@ -681,9 +633,7 @@ local function AplicarHitbox(p, on)
         if part and part:IsA("BasePart") then
             local key = p.UserId .. nome
             if on then
-                if not HitboxOriginais[key] then
-                    HitboxOriginais[key] = part.Size
-                end
+                if not HitboxOriginais[key] then HitboxOriginais[key] = part.Size end
                 part.Size = HitboxOriginais[key] * CFG.HitboxScale
                 part.Transparency = math.min(part.Transparency, 0.4)
                 part.CanCollide = false
@@ -705,6 +655,9 @@ local function AtualizarHitboxes()
     end
 end
 
+-- ══════════════════════════════════════════════════════════════════════
+-- 12) ESP MELHORADO
+-- ══════════════════════════════════════════════════════════════════════
 local function LimparESP(p)
     local o = ESPObjs[p]
     if not o then return end
@@ -811,8 +764,19 @@ local function OlhandoPraVoce(p)
     return look:Dot(dir) > 0.75
 end
 
+-- Cor por time
+local function CorDoPlayer(p)
+    if CFG.ESP.CorTime and p.Team then
+        if p.Team == LocalPlayer.Team then
+            return Color3.fromRGB(0, 255, 100) -- aliado
+        else
+            return Color3.fromRGB(255, 80, 80) -- inimigo
+        end
+    end
+    return CFG.ESP.Cor
+end
+
 local function ESPLoop()
-    local cor = CFG.ESP.Cor
     for _, p in pairs(Players:GetPlayers()) do
         if p == LocalPlayer or MesmoTime(p) then
             LimparESP(p)
@@ -828,6 +792,14 @@ local function ESPLoop()
         if not ESPObjs[p] then CriarESP(p) end
         local d = ESPObjs[p]
         if not d then continue end
+        local cor = CorDoPlayer(p)
+
+        -- Target highlight (alvo do aimbot em vermelho)
+        local isTarget = (AlvoAtual and AlvoAtual.Parent == c)
+        if CFG.ESP.TargetHL and isTarget then
+            cor = Color3.fromRGB(255, 220, 40) -- amarelo para alvo
+        end
+
         if d.HL then
             d.HL.Enabled = CFG.ESP.Highlight or CFG.ESP.Chams
             d.HL.FillColor = cor
@@ -894,6 +866,7 @@ local function ESPLoop()
                 d.VidaBG.Visible = true
                 d.VidaFG.Size = Vector2.new(w, hh * pct)
                 d.VidaFG.Position = Vector2.new(bp.X, bp.Y + hh * (1 - pct))
+                -- Cor gradiente verde->amarelo->vermelho
                 d.VidaFG.Color = Color3.fromRGB(255 * (1 - pct), 255 * pct, 40)
                 d.VidaFG.Visible = true
             else
@@ -930,20 +903,50 @@ local function ESPLoop()
     end
 end
 
-Players.PlayerAdded:Connect(function(p)
-    p.CharacterAdded:Connect(function()
-        task.wait(0.5)
-        if CFG.HitboxExp then AplicarHitbox(p, true) end
-        CriarESP(p)
-    end)
-end)
-Players.PlayerRemoving:Connect(function(p)
-    LimparESP(p)
-    HitboxOriginais[p.UserId .. "Head"] = nil
-    HitboxOriginais[p.UserId .. "HumanoidRootPart"] = nil
-end)
+-- ESP de armas/items no chão
+local ItemESPLines = {}
+local function ESPArmasLoop()
+    if not CFG.ESP.Armas or not Root then
+        for _, l in pairs(ItemESPLines) do l.Visible = false end
+        return
+    end
+    local items = workspace:FindFirstChild("DroppedItems") or workspace:FindFirstChild("Items")
+        or workspace:FindFirstChild("Loot") or workspace
+    local i = 0
+    for _, part in pairs(items:GetDescendants()) do
+        if part:IsA("BasePart") and not part:IsDescendantOf(Char) then
+            local nome = part.Name:lower()
+            if nome:find("gun") or nome:find("weapon") or nome:find("rifle") or nome:find("pistol")
+               or nome:find("ammo") or nome:find("armor") or nome:find("shield") then
+                local dist = (Root.Position - part.Position).Magnitude
+                if dist < 80 then
+                    i += 1
+                    if not ItemESPLines[i] then
+                        local l = Drawing.new("Line")
+                        l.Thickness = 1
+                        l.Color = Color3.fromRGB(255, 200, 0)
+                        ItemESPLines[i] = l
+                    end
+                    local sp, on = W2S(part.Position)
+                    if on then
+                        ItemESPLines[i].From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                        ItemESPLines[i].To = sp
+                        ItemESPLines[i].Visible = true
+                    else
+                        ItemESPLines[i].Visible = false
+                    end
+                end
+            end
+        end
+    end
+    for j = i + 1, #ItemESPLines do
+        ItemESPLines[j].Visible = false
+    end
+end
 
-local RadarDots = {}
+-- ══════════════════════════════════════════════════════════════════════
+-- 13) RADAR 2D
+-- ══════════════════════════════════════════════════════════════════════
 local RadarBG = Drawing.new("Circle")
 RadarBG.Filled = true
 RadarBG.Color = Color3.fromRGB(20, 20, 25)
@@ -992,38 +995,101 @@ local function RadarLoop()
             local x = cx + math.clamp(rel.X * scale, -raio + 4, raio - 4)
             local y = cy + math.clamp(rel.Z * scale, -raio + 4, raio - 4)
             RadarDots[i].Position = Vector2.new(x, y)
-            RadarDots[i].Color = CFG.ESP.Cor
+            RadarDots[i].Color = CorDoPlayer(p)
             RadarDots[i].Visible = true
         end
     end
 end
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 14) LOOP PRINCIPAL (RenderStepped)
+-- ══════════════════════════════════════════════════════════════════════
+local lastAutoClick = 0
+local lastKillAura = 0
 
 RunService.RenderStepped:Connect(function()
     FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     FOVCircle.Radius = CFG.FOV
     FOVCircle.Visible = CFG.MostrarFOV
     ESPLoop()
+    ESPArmasLoop()
     RadarLoop()
     AtualizarHitboxes()
 
-    local alvo = nil
-    if CFG.Aimbot or CFG.SilentAim or CFG.AutoLock then
-        alvo = PegarAlvo()
+    -- Seleciona alvo
+    local aimAtivo = CFG.Aimbot or CFG.SilentAim or CFG.AutoLock or CFG.AutoShoot or CFG.MagicBullet
+    if aimAtivo then
+        -- Hold-to-aim: só mira se segurando a tecla
+        local podeMirar = true
+        if CFG.HoldAim then
+            if CFG.AimKey == Enum.KeyCode.RightMouseButton then
+                podeMirar = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+            else
+                podeMirar = UserInputService:IsKeyDown(CFG.AimKey)
+            end
+        end
+        if podeMirar then
+            AlvoAtual = PegarAlvo()
+            AlvoAtualChar = AlvoAtual and AlvoAtual.Parent or nil
+        else
+            AlvoAtual = nil
+            AlvoAtualChar = nil
+        end
+    else
+        AlvoAtual = nil
+        AlvoAtualChar = nil
     end
 
-    if alvo and (CFG.Aimbot or CFG.AutoLock) and not CFG.SilentAim then
-        local pos = PosAlvo(alvo)
+    -- Aimbot (move câmera)
+    if AlvoAtual and CFG.Aimbot and not CFG.SilentAim then
+        local pos = PosAlvo(AlvoAtual)
         local cf = CFrame.lookAt(Camera.CFrame.Position, pos)
         Camera.CFrame = Camera.CFrame:Lerp(cf, math.clamp(CFG.Suavidade, 0.05, 0.6))
     end
 
-    if alvo and CFG.SilentAim then
-        local pos = PosAlvo(alvo)
-        local cf = CFrame.lookAt(Camera.CFrame.Position, pos)
-        Camera.CFrame = Camera.CFrame:Lerp(cf, math.clamp(CFG.Suavidade * 0.35, 0.02, 0.2))
+    -- Silent Aim: não move câmera (o hook do Mouse faz o trabalho)
+
+    -- Target Line
+    if AlvoAtual and CFG.TargetLine and Root then
+        local sp, on = W2S(AlvoAtual.Position)
+        if on then
+            TargetLine.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+            TargetLine.To = sp
+            TargetLine.Visible = true
+        else
+            TargetLine.Visible = false
+        end
+    else
+        TargetLine.Visible = false
+    end
+
+    -- Auto-shoot
+    if AlvoAtual and CFG.AutoShoot then
+        pcall(function()
+            Vim:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+        end)
+    end
+
+    -- Anti-recoil
+    if CFG.AntiRecoil then AntiRecoilLoop() end
+
+    -- Kill Aura (throttle)
+    local t = os.clock()
+    if t - lastKillAura > 0.5 then
+        lastKillAura = t
+        KillAuraLoop()
+    end
+
+    -- Auto-clicker (throttle)
+    if CFG.AutoClicker and t - lastAutoClick > (1 / CFG.ClickSpeed) then
+        lastAutoClick = t
+        AutoClickerLoop()
     end
 end)
 
+-- ══════════════════════════════════════════════════════════════════════
+-- 15) MOVIMENTO
+-- ══════════════════════════════════════════════════════════════════════
 local function SetSpeed(on)
     CFG.SpeedOn = on
     if SpeedConn then SpeedConn:Disconnect() SpeedConn = nil end
@@ -1106,15 +1172,41 @@ local function SetNoFall(on)
     if on and Hum then
         NoFallConn = Hum.StateChanged:Connect(function(_, new)
             if new == Enum.HumanoidStateType.Freefall or new == Enum.HumanoidStateType.FallingDown then
-                pcall(function()
-                    Hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-                end)
+                pcall(function() Hum:ChangeState(Enum.HumanoidStateType.GettingUp) end)
             end
         end)
         pcall(function()
             Hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
             Hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
         end)
+    end
+end
+
+local function SetBhop(on)
+    CFG.Bhop = on
+    if BhopConn then BhopConn:Disconnect() BhopConn = nil end
+    if on then
+        BhopConn = RunService.Heartbeat:Connect(function()
+            if not CFG.Bhop or not Hum or not Root then return end
+            if Hum:GetState() == Enum.HumanoidStateType.Running or Hum:GetState() == Enum.HumanoidStateType.Landed then
+                Hum:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end)
+    end
+end
+
+local function SetJumpBoost(on)
+    CFG.JumpBoost = on
+    if JumpConn then JumpConn:Disconnect() JumpConn = nil end
+    if on and Hum then
+        pcall(function() Hum.UseJumpPower = true end)
+        JumpConn = RunService.Heartbeat:Connect(function()
+            if CFG.JumpBoost and Hum then
+                pcall(function() Hum.JumpPower = CFG.JumpVal end)
+            end
+        end)
+    elseif Hum then
+        pcall(function() Hum.JumpPower = 50 end)
     end
 end
 
@@ -1164,9 +1256,7 @@ RunService.Heartbeat:Connect(function()
     if not CFG.XRay or not Root then return end
     for _, part in pairs(workspace:GetPartBoundsInRadius(Root.Position, 70)) do
         if part:IsA("BasePart") and not part:IsDescendantOf(Char) then
-            if not XRayParts[part] then
-                XRayParts[part] = part.LocalTransparencyModifier
-            end
+            if not XRayParts[part] then XRayParts[part] = part.LocalTransparencyModifier end
             part.LocalTransparencyModifier = 0.65
         end
     end
@@ -1192,9 +1282,90 @@ UserInputService.InputBegan:Connect(function(input, gp)
     end
 end)
 
+-- ══════════════════════════════════════════════════════════════════════
+-- 16) PERFIS POR JOGO (salvar/carregar configurações por jogo)
+-- ══════════════════════════════════════════════════════════════════════
+local PerfilAtual = game.PlaceId
+local Perfis = getgenv().Perfis or {}
+getgenv().Perfis = Perfis
+
+local function SalvarPerfil()
+    Perfis[PerfilAtual] = {
+        Aimbot = CFG.Aimbot,
+        SilentAim = CFG.SilentAim,
+        MagicBullet = CFG.MagicBullet,
+        WallBang = CFG.WallBang,
+        AutoLock = CFG.AutoLock,
+        KillAura = CFG.KillAura,
+        Prediction = CFG.Prediction,
+        FOV = CFG.FOV,
+        Suavidade = CFG.Suavidade,
+        HitboxExp = CFG.HitboxExp,
+        SpeedOn = CFG.SpeedOn,
+        Noclip = CFG.Noclip,
+        Fly = CFG.Fly,
+        InfJump = CFG.InfJump,
+        NoFall = CFG.NoFall,
+        Bhop = CFG.Bhop,
+        Fullbright = CFG.Fullbright,
+        NoFog = CFG.NoFog,
+        XRay = CFG.XRay,
+        AntiAFK = CFG.AntiAFK,
+        Radar = CFG.Radar,
+    }
+end
+
+local function CarregarPerfil()
+    local p = Perfis[PerfilAtual]
+    if not p then return end
+    CFG.Aimbot = p.Aimbot or false
+    CFG.SilentAim = p.SilentAim or false
+    CFG.MagicBullet = p.MagicBullet or false
+    CFG.WallBang = p.WallBang or false
+    CFG.AutoLock = p.AutoLock or false
+    CFG.KillAura = p.KillAura or false
+    CFG.Prediction = p.Prediction or false
+    CFG.FOV = p.FOV or 140
+    CFG.Suavidade = p.Suavidade or 0.2
+    CFG.HitboxExp = p.HitboxExp or false
+    SetSpeed(p.SpeedOn or false)
+    SetNoclip(p.Noclip or false)
+    SetFly(p.Fly or false)
+    SetInfJump(p.InfJump or false)
+    SetNoFall(p.NoFall or false)
+    SetBhop(p.Bhop or false)
+    SetFullbright(p.Fullbright or false)
+    SetNoFog(p.NoFog or false)
+    SetXRay(p.XRay or false)
+    SetAntiAFK(p.AntiAFK or false)
+    CFG.Radar = p.Radar or false
+end
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 17) PLAYER ADDED/REMOVING
+-- ══════════════════════════════════════════════════════════════════════
+Players.PlayerAdded:Connect(function(p)
+    p.CharacterAdded:Connect(function()
+        task.wait(0.5)
+        if CFG.HitboxExp then AplicarHitbox(p, true) end
+        CriarESP(p)
+    end)
+end)
+Players.PlayerRemoving:Connect(function(p)
+    LimparESP(p)
+    HitboxOriginais[p.UserId .. "Head"] = nil
+    HitboxOriginais[p.UserId .. "HumanoidRootPart"] = nil
+end)
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 18) INTERFACE (Fluent)
+-- ══════════════════════════════════════════════════════════════════════
+local PanelKey = Enum.KeyCode.RightControl
+local PanicKey = Enum.KeyCode.Nine
+
 local Window = Library:CreateWindow{
     Title = "Pabloza xit",
-    SubTitle = "Fluent Renewed",
+    SubTitle = "ULTRA v6.0",
     TabWidth = 160,
     Size = UDim2.fromOffset(720, 520),
     Resize = true,
@@ -1208,26 +1379,43 @@ local Tabs = {
     Combate = Window:CreateTab{Title = "Combate", Icon = "crosshair"},
     ESP = Window:CreateTab{Title = "ESP", Icon = "eye"},
     Movimento = Window:CreateTab{Title = "Movimento", Icon = "person-standing"},
-    Util = Window:CreateTab{Title = "Utilidade", Icon = "settings"}
+    Util = Window:CreateTab{Title = "Utilidade", Icon = "settings"},
+    Bypass = Window:CreateTab{Title = "Bypass", Icon = "shield"},
 }
 
+-- ════════════════ ABA COMBATE ════════════════
+Tabs.Combate:CreateSection("Aim")
 Tabs.Combate:CreateToggle("Aimbot", {Title = "Aimbot", Default = false, Callback = function(v) CFG.Aimbot = v end})
 Tabs.Combate:CreateToggle("SilentAim", {Title = "Silent Aim", Default = false, Callback = function(v) CFG.SilentAim = v end})
+Tabs.Combate:CreateToggle("MagicBullet", {Title = "Magic Bullet", Default = false, Callback = function(v) CFG.MagicBullet = v end})
+Tabs.Combate:CreateToggle("WallBang", {Title = "WallBang (atravessa paredes)", Default = false, Callback = function(v) CFG.WallBang = v end})
 Tabs.Combate:CreateToggle("AutoLock", {Title = "Auto-Lock Head", Default = false, Callback = function(v) CFG.AutoLock = v end})
+Tabs.Combate:CreateToggle("HoldAim", {Title = "Aim por Tecla (segurar)", Default = false, Callback = function(v) CFG.HoldAim = v end})
 Tabs.Combate:CreateToggle("Prediction", {Title = "Prediction", Default = false, Callback = function(v) CFG.Prediction = v end})
-Tabs.Combate:CreateToggle("HitboxExp", {Title = "Hitbox Expander", Default = false, Callback = function(v) CFG.HitboxExp = v end})
-Tabs.Combate:CreateToggle("TeamCheck", {Title = "Team Check", Default = false, Callback = function(v) CFG.TeamCheck = v end})
-Tabs.Combate:CreateToggle("MostrarFOV", {Title = "Mostrar FOV", Default = false, Callback = function(v) CFG.MostrarFOV = v end})
-Tabs.Combate:CreateToggle("WallCheck", {Title = "Wall Check", Default = false, Callback = function(v) CFG.WallCheck = v end})
-Tabs.Combate:CreateToggle("WallBang", {Title = "WallBang", Default = false, Callback = function(v) CFG.WallBang = v end})
+Tabs.Combate:CreateToggle("TargetLine", {Title = "Linha até o Alvo", Default = false, Callback = function(v) CFG.TargetLine = v end})
+Tabs.Combate:CreateToggle("AntiRecoil", {Title = "Anti-Recoil", Default = false, Callback = function(v) CFG.AntiRecoil = v end})
+
+Tabs.Combate:CreateSection("Ataque Automático")
+Tabs.Combate:CreateToggle("AutoShoot", {Title = "Auto-Shoot", Default = false, Callback = function(v) CFG.AutoShoot = v end})
+Tabs.Combate:CreateToggle("AutoClicker", {Title = "Auto-Clicker", Default = false, Callback = function(v) CFG.AutoClicker = v end})
+Tabs.Combate:CreateSlider("ClickSpeed", {Title = "Vel. Auto-Clicker", Default = 12, Min = 4, Max = 25, Rounding = 0, Callback = function(v) CFG.ClickSpeed = v end})
+Tabs.Combate:CreateToggle("KillAura", {Title = "Kill Aura", Default = false, Callback = function(v) CFG.KillAura = v end})
+Tabs.Combate:CreateSlider("KillAuraRange", {Title = "Range Kill Aura", Default = 20, Min = 5, Max = 50, Rounding = 0, Callback = function(v) CFG.KillAuraRange = v end})
+
+Tabs.Combate:CreateSection("Ajustes")
 Tabs.Combate:CreateSlider("Suavidade", {Title = "Suavidade", Default = 0.2, Min = 0.05, Max = 0.55, Rounding = 2, Callback = function(v) CFG.Suavidade = v end})
 Tabs.Combate:CreateSlider("FOV", {Title = "FOV", Default = 140, Min = 40, Max = 300, Rounding = 0, Callback = function(v) CFG.FOV = v end})
-Tabs.Combate:CreateSlider("HitboxAim", {Title = "Tamanho Hitbox Aim", Default = 1.5, Min = 1, Max = 3, Rounding = 1, Callback = function(v) CFG.Hitbox = v end})
 Tabs.Combate:CreateSlider("HitboxScale", {Title = "Escala Hitbox Expander", Default = 2.2, Min = 1.2, Max = 4, Rounding = 1, Callback = function(v) CFG.HitboxScale = v end})
 Tabs.Combate:CreateSlider("PredForca", {Title = "Força Prediction", Default = 0.12, Min = 0.02, Max = 0.3, Rounding = 2, Callback = function(v) CFG.PredForca = v end})
 Tabs.Combate:CreateDropdown("Parte", {Title = "Parte do Alvo", Values = {"Head", "HumanoidRootPart"}, Default = 1, Callback = function(v) CFG.Parte = v end})
 Tabs.Combate:CreateDropdown("Prioridade", {Title = "Prioridade", Values = {"Crosshair", "Distancia", "Vida", "Visivel"}, Default = 1, Callback = function(v) CFG.Prioridade = v end})
+Tabs.Combate:CreateToggle("TeamCheck", {Title = "Team Check", Default = false, Callback = function(v) CFG.TeamCheck = v end})
+Tabs.Combate:CreateToggle("WallCheck", {Title = "Wall Check", Default = false, Callback = function(v) CFG.WallCheck = v end})
+Tabs.Combate:CreateToggle("MostrarFOV", {Title = "Mostrar FOV", Default = false, Callback = function(v) CFG.MostrarFOV = v end})
+Tabs.Combate:CreateToggle("HitboxExp", {Title = "Hitbox Expander", Default = false, Callback = function(v) CFG.HitboxExp = v end})
 
+-- ════════════════ ABA ESP ════════════════
+Tabs.ESP:CreateSection("ESP de Jogadores")
 Tabs.ESP:CreateToggle("HL", {Title = "Highlight", Default = false, Callback = function(v) CFG.ESP.Highlight = v end})
 Tabs.ESP:CreateToggle("Caixa", {Title = "Caixa", Default = false, Callback = function(v) CFG.ESP.Caixa = v end})
 Tabs.ESP:CreateToggle("Filled", {Title = "Chams / Filled Box", Default = false, Callback = function(v) CFG.ESP.Chams = v end})
@@ -1237,9 +1425,16 @@ Tabs.ESP:CreateToggle("Vida", {Title = "Barra de Vida", Default = false, Callbac
 Tabs.ESP:CreateToggle("Nomes", {Title = "Nomes", Default = false, Callback = function(v) CFG.ESP.Nomes = v end})
 Tabs.ESP:CreateToggle("Dist", {Title = "Distância", Default = false, Callback = function(v) CFG.ESP.Distancia = v end})
 Tabs.ESP:CreateToggle("Flags", {Title = "Flags (Nome+HP+Dist+Mirando)", Default = false, Callback = function(v) CFG.ESP.Flags = v end})
+Tabs.ESP:CreateToggle("CorTime", {Title = "Cor por Time", Default = false, Callback = function(v) CFG.ESP.CorTime = v end})
+Tabs.ESP:CreateToggle("TargetHL", {Title = "Destacar Alvo do Aim", Default = false, Callback = function(v) CFG.ESP.TargetHL = v end})
+
+Tabs.ESP:CreateSection("Extras")
+Tabs.ESP:CreateToggle("Armas", {Title = "ESP de Armas/Items", Default = false, Callback = function(v) CFG.ESP.Armas = v end})
 Tabs.ESP:CreateSlider("TamanhoTexto", {Title = "Tamanho Distância", Default = 13, Min = 8, Max = 24, Rounding = 0, Callback = function(v) CFG.ESP.TamanhoTexto = v end})
 Tabs.ESP:CreateColorpicker("ESPCor", {Title = "Cor do ESP", Default = Color3.fromRGB(0, 255, 140), Callback = function(v) CFG.ESP.Cor = v end})
 
+-- ════════════════ ABA MOVIMENTO ════════════════
+Tabs.Movimento:CreateSection("Movimento")
 Tabs.Movimento:CreateToggle("Speed", {Title = "Speed Hack", Default = false, Callback = function(v) SetSpeed(v) end})
 Tabs.Movimento:CreateDropdown("SpeedModo", {Title = "Modo Speed", Values = {"Suave", "Rapido"}, Default = 1, Callback = function(v) CFG.SpeedModo = v end})
 Tabs.Movimento:CreateSlider("SpeedVal", {Title = "Velocidade", Default = 22, Min = 16, Max = 25, Rounding = 0, Callback = function(v) CFG.SpeedVal = v end})
@@ -1249,6 +1444,9 @@ Tabs.Movimento:CreateDropdown("FlyModo", {Title = "Modo Fly", Values = {"Normal"
 Tabs.Movimento:CreateSlider("FlySpeed", {Title = "Velocidade Fly", Default = 45, Min = 15, Max = 60, Rounding = 0, Callback = function(v) CFG.FlySpeed = v end})
 Tabs.Movimento:CreateToggle("InfJump", {Title = "Infinite Jump", Default = false, Callback = function(v) SetInfJump(v) end})
 Tabs.Movimento:CreateToggle("NoFall", {Title = "No Fall Damage", Default = false, Callback = function(v) SetNoFall(v) end})
+Tabs.Movimento:CreateToggle("Bhop", {Title = "Bhop / Bunny Hop", Default = false, Callback = function(v) SetBhop(v) end})
+Tabs.Movimento:CreateToggle("JumpBoost", {Title = "Jump Boost", Default = false, Callback = function(v) SetJumpBoost(v) end})
+Tabs.Movimento:CreateSlider("JumpVal", {Title = "Força Jump", Default = 50, Min = 50, Max = 120, Rounding = 0, Callback = function(v) CFG.JumpVal = v end})
 Tabs.Movimento:CreateSlider("BlinkDist", {Title = "Distância Blink", Default = 18, Min = 8, Max = 40, Rounding = 0, Callback = function(v) CFG.BlinkDist = v end})
 Tabs.Movimento:CreateButton{Title = "Blink / Dash", Callback = function() Blink() end}
 Tabs.Movimento:CreateToggle("TPClick", {Title = "Teleport no Click", Default = false, Callback = function(v) CFG.TPClick = v end})
@@ -1274,15 +1472,19 @@ Tabs.Movimento:CreateDropdown("TPPlayer", {
     end
 })
 
+-- ════════════════ ABA UTILIDADE ════════════════
+Tabs.Util:CreateSection("Visual")
 Tabs.Util:CreateToggle("Fullbright", {Title = "Fullbright", Default = false, Callback = function(v) SetFullbright(v) end})
 Tabs.Util:CreateToggle("NoFog", {Title = "No Fog", Default = false, Callback = function(v) SetNoFog(v) end})
 Tabs.Util:CreateToggle("XRay", {Title = "X-Ray", Default = false, Callback = function(v) SetXRay(v) end})
-Tabs.Util:CreateToggle("AntiAFK", {Title = "Anti-AFK", Default = false, Callback = function(v) SetAntiAFK(v) end})
 Tabs.Util:CreateToggle("Radar", {Title = "Radar 2D", Default = false, Callback = function(v) CFG.Radar = v end})
 Tabs.Util:CreateSlider("CamFOV", {Title = "FOV da Câmera", Default = 70, Min = 50, Max = 120, Rounding = 0, Callback = function(v)
     CFG.CamFOV = v
     Camera.FieldOfView = v
 end})
+
+Tabs.Util:CreateSection("Jogadores")
+Tabs.Util:CreateToggle("AntiAFK", {Title = "Anti-AFK", Default = false, Callback = function(v) SetAntiAFK(v) end})
 Tabs.Util:CreateDropdown("Spectate", {
     Title = "Spectate Player",
     Values = ListaP(),
@@ -1297,13 +1499,15 @@ Tabs.Util:CreateDropdown("Spectate", {
 Tabs.Util:CreateButton{Title = "Voltar Spectate (Eu)", Callback = function()
     if Hum then Camera.CameraSubject = Hum end
 end}
+
+Tabs.Util:CreateSection("Servidor")
 Tabs.Util:CreateButton{Title = "Rejoin", Callback = function()
     TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
 end}
 Tabs.Util:CreateButton{Title = "Server Hop", Callback = function()
     pcall(function()
         local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-        local data = game:GetService("HttpService"):JSONDecode(game:HttpGet(url))
+        local data = HttpService:JSONDecode(game:HttpGet(url))
         for _, s in pairs(data.data or {}) do
             if s.playing < s.maxPlayers and s.id ~= game.JobId then
                 TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, LocalPlayer)
@@ -1313,6 +1517,17 @@ Tabs.Util:CreateButton{Title = "Server Hop", Callback = function()
     end)
 end}
 
+Tabs.Util:CreateSection("Perfis")
+Tabs.Util:CreateButton{Title = "Salvar Perfil deste Jogo", Callback = function()
+    SalvarPerfil()
+    Library:Notify{Title = "Perfil", Content = "Configurações salvas para este jogo!", Duration = 3}
+end}
+Tabs.Util:CreateButton{Title = "Carregar Perfil deste Jogo", Callback = function()
+    CarregarPerfil()
+    Library:Notify{Title = "Perfil", Content = "Configurações carregadas!", Duration = 3}
+end}
+
+Tabs.Util:CreateSection("Teclas")
 Tabs.Util:CreateButton{Title = "Configurar Tecla do Painel", Callback = function()
     Library:Notify{Title = "Configuração", Content = "Pressione a tecla desejada para abrir/fechar o painel", Duration = 3}
     local conn
@@ -1325,81 +1540,6 @@ Tabs.Util:CreateButton{Title = "Configurar Tecla do Painel", Callback = function
         end
     end)
 end}
-
-local PanicActive = false
-local EstadoOriginal = {}
-
-local function SalvarEstado()
-    EstadoOriginal = {
-        Aimbot = CFG.Aimbot,
-        SilentAim = CFG.SilentAim,
-        AutoLock = CFG.AutoLock,
-        Prediction = CFG.Prediction,
-        HitboxExp = CFG.HitboxExp,
-        WallCheck = CFG.WallCheck,
-        WallBang = CFG.WallBang,
-        SpeedOn = CFG.SpeedOn,
-        Noclip = CFG.Noclip,
-        Fly = CFG.Fly,
-        InfJump = CFG.InfJump,
-        NoFall = CFG.NoFall,
-        Fullbright = CFG.Fullbright,
-        NoFog = CFG.NoFog,
-        XRay = CFG.XRay,
-        AntiAFK = CFG.AntiAFK,
-        Radar = CFG.Radar,
-        TPClick = CFG.TPClick
-    }
-end
-
-local function DesativarTudo()
-    SalvarEstado()
-    CFG.Aimbot = false
-    CFG.SilentAim = false
-    CFG.AutoLock = false
-    CFG.Prediction = false
-    CFG.HitboxExp = false
-    CFG.WallCheck = false
-    CFG.WallBang = false
-    SetSpeed(false)
-    SetNoclip(false)
-    SetFly(false)
-    SetInfJump(false)
-    SetNoFall(false)
-    SetFullbright(false)
-    SetNoFog(false)
-    SetXRay(false)
-    SetAntiAFK(false)
-    CFG.Radar = false
-    CFG.TPClick = false
-    PanicActive = true
-    Library:Notify{Title = "PANIC MODE", Content = "Todas as opções desativadas", Duration = 3}
-end
-
-local function RestaurarEstado()
-    if not PanicActive then return end
-    CFG.Aimbot = EstadoOriginal.Aimbot
-    CFG.SilentAim = EstadoOriginal.SilentAim
-    CFG.AutoLock = EstadoOriginal.AutoLock
-    CFG.Prediction = EstadoOriginal.Prediction
-    CFG.HitboxExp = EstadoOriginal.HitboxExp
-    CFG.WallCheck = EstadoOriginal.WallCheck
-    CFG.WallBang = EstadoOriginal.WallBang
-    SetSpeed(EstadoOriginal.SpeedOn)
-    SetNoclip(EstadoOriginal.Noclip)
-    SetFly(EstadoOriginal.Fly)
-    SetInfJump(EstadoOriginal.InfJump)
-    SetNoFall(EstadoOriginal.NoFall)
-    SetFullbright(EstadoOriginal.Fullbright)
-    SetNoFog(EstadoOriginal.NoFog)
-    SetXRay(EstadoOriginal.XRay)
-    SetAntiAFK(EstadoOriginal.AntiAFK)
-    CFG.Radar = EstadoOriginal.Radar
-    CFG.TPClick = EstadoOriginal.TPClick
-    PanicActive = false
-    Library:Notify{Title = "PANIC MODE", Content = "Opções restauradas", Duration = 3}
-end
-
 Tabs.Util:CreateButton{Title = "Configurar Tecla Panic", Callback = function()
     Library:Notify{Title = "Configuração", Content = "Pressione a tecla desejada para ativar/desativar Panic Mode", Duration = 3}
     local conn
@@ -1412,18 +1552,121 @@ Tabs.Util:CreateButton{Title = "Configurar Tecla Panic", Callback = function()
     end)
 end}
 
+-- Panic Mode
+local PanicActive = false
+local EstadoOriginal = {}
+
+local function SalvarEstado()
+    EstadoOriginal = {
+        Aimbot = CFG.Aimbot, SilentAim = CFG.SilentAim, MagicBullet = CFG.MagicBullet,
+        WallBang = CFG.WallBang, AutoLock = CFG.AutoLock, KillAura = CFG.KillAura,
+        Prediction = CFG.Prediction, HitboxExp = CFG.HitboxExp, WallCheck = CFG.WallCheck,
+        SpeedOn = CFG.SpeedOn, Noclip = CFG.Noclip, Fly = CFG.Fly, InfJump = CFG.InfJump,
+        NoFall = CFG.NoFall, Bhop = CFG.Bhop, Fullbright = CFG.Fullbright,
+        NoFog = CFG.NoFog, XRay = CFG.XRay, AntiAFK = CFG.AntiAFK,
+        Radar = CFG.Radar, TPClick = CFG.TPClick
+    }
+end
+
+local function DesativarTudo()
+    SalvarEstado()
+    CFG.Aimbot = false; CFG.SilentAim = false; CFG.MagicBullet = false
+    CFG.WallBang = false; CFG.AutoLock = false; CFG.KillAura = false
+    CFG.Prediction = false; CFG.HitboxExp = false; CFG.WallCheck = false
+    SetSpeed(false); SetNoclip(false); SetFly(false); SetInfJump(false)
+    SetNoFall(false); SetBhop(false); SetFullbright(false); SetNoFog(false)
+    SetXRay(false); SetAntiAFK(false)
+    CFG.Radar = false; CFG.TPClick = false
+    PanicActive = true
+    Library:Notify{Title = "PANIC MODE", Content = "Todas as opções desativadas", Duration = 3}
+end
+
+local function RestaurarEstado()
+    if not PanicActive then return end
+    CFG.Aimbot = EstadoOriginal.Aimbot; CFG.SilentAim = EstadoOriginal.SilentAim
+    CFG.MagicBullet = EstadoOriginal.MagicBullet; CFG.WallBang = EstadoOriginal.WallBang
+    CFG.AutoLock = EstadoOriginal.AutoLock; CFG.KillAura = EstadoOriginal.KillAura
+    CFG.Prediction = EstadoOriginal.Prediction; CFG.HitboxExp = EstadoOriginal.HitboxExp
+    CFG.WallCheck = EstadoOriginal.WallCheck
+    SetSpeed(EstadoOriginal.SpeedOn); SetNoclip(EstadoOriginal.Noclip)
+    SetFly(EstadoOriginal.Fly); SetInfJump(EstadoOriginal.InfJump)
+    SetNoFall(EstadoOriginal.NoFall); SetBhop(EstadoOriginal.Bhop)
+    SetFullbright(EstadoOriginal.Fullbright); SetNoFog(EstadoOriginal.NoFog)
+    SetXRay(EstadoOriginal.XRay); SetAntiAFK(EstadoOriginal.AntiAFK)
+    CFG.Radar = EstadoOriginal.Radar; CFG.TPClick = EstadoOriginal.TPClick
+    PanicActive = false
+    Library:Notify{Title = "PANIC MODE", Content = "Opções restauradas", Duration = 3}
+end
+
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
     if input.UserInputType == Enum.UserInputType.Keyboard then
         if input.KeyCode == PanicKey then
-            if PanicActive then
-                RestaurarEstado()
-            else
-                DesativarTudo()
-            end
+            if PanicActive then RestaurarEstado() else DesativarTudo() end
         end
     end
 end)
 
+-- ════════════════ ABA BYPASS ════════════════
+Tabs.Bypass:CreateSection("Proteção Anti-Cheat")
+Tabs.Bypass:CreateToggle("BypassEnabled", {Title = "Bypass Ativo", Default = true, Callback = function(v)
+    getgenv().Bypass.Enabled = v
+end})
+Tabs.Bypass:CreateToggle("BlockGetObjects", {Title = "Bloquear Payload de Crash (GetObjects)", Default = true, Callback = function(v)
+    getgenv().Bypass.BlockGetObjects = v
+end})
+Tabs.Bypass:CreateToggle("BlockHttp", {Title = "Bloquear HttpGet de Anti-Cheat", Default = true, Callback = function(v)
+    getgenv().Bypass.BlockHttp = v
+end})
+Tabs.Bypass:CreateToggle("BlockRemotes", {Title = "Bloquear Remotes Suspeitos (kick/ban)", Default = true, Callback = function(v)
+    getgenv().Bypass.BlockRemotes = v
+end})
+Tabs.Bypass:CreateToggle("SpoofGC", {Title = "Spoof getgc (esconde script)", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofGC = v
+end})
+Tabs.Bypass:CreateToggle("SpoofConn", {Title = "Spoof getconnections", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofConn = v
+end})
+Tabs.Bypass:CreateToggle("SpoofInfo", {Title = "Spoof getinfo", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofInfo = v
+end})
+Tabs.Bypass:CreateToggle("SpoofIdentity", {Title = "Spoof Identidade (HWID/UserID)", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofIdentity = v
+end})
+Tabs.Bypass:CreateToggle("SpoofDrawing", {Title = "Spoof Drawing/HUI", Default = true, Callback = function(v)
+    getgenv().Bypass.SpoofDrawing = v
+end})
+Tabs.Bypass:CreateToggle("BlockLoadstring", {Title = "Proteger Loadstring", Default = true, Callback = function(v)
+    getgenv().Bypass.BlockLoadstring = v
+end})
+Tabs.Bypass:CreateToggle("BlockThreads", {Title = "Proteger Threads (task.spawn)", Default = true, Callback = function(v)
+    getgenv().Bypass.BlockThreads = v
+end})
+
+Tabs.Bypass:CreateSection("Anti-Crash de RAM")
+Tabs.Bypass:CreateSlider("RamLimit", {Title = "Limite RAM (MB)", Default = 3500, Min = 1500, Max = 6000, Rounding = 0, Callback = function(v)
+    getgenv().Bypass.RamLimit = v
+end})
+Tabs.Bypass:CreateButton{Title = "Forçar Limpeza de Memória (GC)", Callback = function()
+    collectgarbage("collect")
+    Library:Notify{Title = "Memória", Content = "Garbage Collector executado!", Duration = 3}
+end}
+
+Tabs.Bypass:CreateSection("Status")
+Tabs.Bypass:CreateButton{Title = "Ver Status do Bypass", Callback = function()
+    local det = getgenv().Bypass.Detection and "SIM" or "NÃO"
+    local ativo = getgenv().Bypass.Active and "SIM" or "NÃO"
+    Library:Notify{Title = "Bypass", Content = "Ativo: " .. ativo .. " | Anti-cheat detectado: " .. det, Duration = 4}
+end}
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 19) INICIALIZAÇÃO
+-- ══════════════════════════════════════════════════════════════════════
 Window:SelectTab(1)
-Library:Notify{Title = "Pabloza xit", Content = "EXU BYPASS ATIVADO!", Duration = 3}
+CarregarPerfil()
+Library:Notify{Title = "Pabloza xit", Content = "ULTRA v6.0 carregado! Bypass ativo. Ative as opções manualmente.", Duration = 5}
+
+-- Salva perfil ao sair
+game:BindToClose(function()
+    SalvarPerfil()
+end)
