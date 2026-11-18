@@ -70,43 +70,39 @@ local ContentProvider = game:GetService("ContentProvider")
 local LocalPlayer = Players.LocalPlayer
 
 local function AntiCrash()
-    local protegido = false
+    local oldNamecall
+    oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        local args = {...}
 
-    local ok = pcall(function()
-        hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-            local method = getnamecallmethod()
-            local args = {...}
-
-            if getgenv().Bypass.BlockHttp and (method == "HttpGetAsync" or method == "HttpGet") then
-                local url = tostring(args[1])
-                if url:find("github") or url:find("raw") then
-                    return '{"data":[]}'
-                end
-                if url:find("games.roblox.com") or url:find("economy.roblox.com")
-                   or url:find("anticheat") or url:find("cheat") or url:find("ban")
-                   or url:find("whitelist") or url:find("hwid") then
-                    return '{"data":[]}'
-                end
+        if getgenv().Bypass.BlockHttp and (method == "HttpGetAsync" or method == "HttpGet") then
+            local url = tostring(args[1])
+            if url:find("github") or url:find("raw") then
+                return '{"data":[]}'
             end
-
-            if getgenv().Bypass.BlockRemotes and (method == "FireServer" or method == "InvokeServer") then
-                local n = tostring(self.Name):lower()
-                if n:find("kick") or n:find("ban") or n:find("detect") or n:find("crash")
-                   or n:find("exploit") or n:find("cheat") or n:find("anti")
-                   or n:find("punish") or n:find("report") then
-                    getgenv().Bypass.Detection = true
-                    return
-                end
+            if url:find("games.roblox.com") or url:find("economy.roblox.com")
+               or url:find("anticheat") or url:find("cheat") or url:find("ban")
+               or url:find("whitelist") or url:find("hwid") then
+                return '{"data":[]}'
             end
+        end
 
-            if getgenv().Bypass.BlockGetObjects and method == "GetObjects" and self == ContentProvider then
-                return {}
+        if getgenv().Bypass.BlockRemotes and (method == "FireServer" or method == "InvokeServer") then
+            local n = tostring(self.Name):lower()
+            if n:find("kick") or n:find("ban") or n:find("detect") or n:find("crash")
+               or n:find("exploit") or n:find("cheat") or n:find("anti")
+               or n:find("punish") or n:find("report") then
+                getgenv().Bypass.Detection = true
+                return
             end
+        end
 
-            return oldNamecall(self, ...)
-        end))
-    end)
-    local oldNamecall = ok and hookmetamethod(game, "__namecall", newcclosure(function() end)) or nil
+        if getgenv().Bypass.BlockGetObjects and method == "GetObjects" and self == ContentProvider then
+            return {}
+        end
+
+        return oldNamecall(self, ...)
+    end))
 
     pcall(function()
         hookmetamethod(game, "__index", newcclosure(function(self, key)
@@ -314,173 +310,6 @@ local function AntiCrash()
         SafeHookFunction(getscript, newcclosure(function(...) return nil end))
     end
 
-    if getgenv().Bypass.SpoofGC and SafeExists(getgc) then
-        SafeHookFunction(getgc, newcclosure(function(...)
-            local res = {}
-            local ok, lista = pcall(getgc, ...)
-            if ok and lista then
-                for _, v in ipairs(lista) do
-                    if type(v) == "function" then
-                        local ok2, info = pcall(getinfo, v)
-                        if ok2 and info and info.source then
-                            if info.source:find("Pabloza") or info.source:find("xit") or info.source:find("Bypass") then
-                            else
-                                table.insert(res, v)
-                            end
-                        else
-                            table.insert(res, v)
-                        end
-                    else
-                        table.insert(res, v)
-                    end
-                end
-            end
-            return res
-        end))
-    end
-
-    if getgenv().Bypass.SpoofConn and SafeExists(getconnections) then
-        SafeHookFunction(getconnections, newcclosure(function(...)
-            local ok, lista = pcall(getconnections, ...)
-            if ok and lista then
-                local res = {}
-                for _, c in ipairs(lista) do
-                    local ok2, fn = pcall(function() return c.Function end)
-                    if ok2 and fn then
-                        local ok3, info = pcall(getinfo, fn)
-                        if not (ok3 and info and info.source and info.source:find("Pabloza")) then
-                            table.insert(res, c)
-                        end
-                    else
-                        table.insert(res, c)
-                    end
-                end
-                return res
-            end
-            return lista
-        end))
-    end
-
-    if getgenv().Bypass.SpoofInfo and SafeExists(getinfo) then
-        SafeHookFunction(getinfo, newcclosure(function(...)
-            local ok, info = pcall(getinfo, ...)
-            if ok and info then
-                info.source = "print"
-                info.short_src = "print"
-                info.what = "Lua"
-                info.linedefined = 0
-                info.lastlinedefined = 0
-                info.currentline = -1
-                info.nups = 0
-                info.nparams = 0
-                info.isvararg = false
-                info.func = nil
-            end
-            return info
-        end))
-    end
-
-    if getgenv().Bypass.SpoofIdentity then
-        local fakeUserId = 100000000
-        local fakeJobId = "00000000-0000-0000-0000-000000000000"
-        local fakePlaceId = 4483381587
-        local fakeGameId = 4483381587
-
-        local oldGetUser = SafeHookFunction(identity, function() return 8 end)
-        getgenv().SpoofedUserId = fakeUserId
-    end
-
-    if getgenv().Bypass.SpoofDrawing and SafeExists(gethui) then
-        SafeHookFunction(gethui, newcclosure(function(...) return {} end))
-    end
-    if getgenv().Bypass.SpoofDrawing and SafeExists(getdrawings) then
-        SafeHookFunction(getdrawings, newcclosure(function(...) return {} end))
-    end
-
-    if getgenv().Bypass.SpoofNamecall and SafeExists(getnamecallmethod) then
-        SafeHookFunction(getnamecallmethod, newcclosure(function(...) return "unknown" end))
-    end
-
-    if getgenv().Bypass.SpoofHook and SafeExists(hookfunction) then
-        SafeHookFunction(hookfunction, newcclosure(function(fn, wrapper)
-            return fn
-        end))
-    end
-
-    if getgenv().Bypass.SpoofClosure and SafeExists(newcclosure) then
-        SafeHookFunction(newcclosure, newcclosure(function(fn)
-            return fn
-        end))
-    end
-
-    if getgenv().Bypass.SpoofCaller and SafeExists(checkcaller) then
-        SafeHookFunction(checkcaller, newcclosure(function(...) return false end))
-    end
-
-    if getgenv().Bypass.SpoofClosure2 and SafeExists(isourclosure) then
-        SafeHookFunction(isourclosure, newcclosure(function(...) return true end))
-    end
-
-    if getgenv().Bypass.SpoofReadonly and SafeExists(isreadonly) then
-        SafeHookFunction(isreadonly, newcclosure(function(...) return true end))
-    end
-
-    if getgenv().Bypass.SpoofMetatable and SafeExists(getrawmetatable) then
-        SafeHookFunction(getrawmetatable, newcclosure(function(...) return nil end))
-    end
-
-    if getgenv().Bypass.SpoofEnv and SafeExists(getsenv) then
-        SafeHookFunction(getsenv, newcclosure(function(...) return {} end))
-    end
-
-    if getgenv().Bypass.SpoofGenv and SafeExists(getgenv) then
-        SafeHookFunction(getgenv, newcclosure(function(...) return {} end))
-    end
-
-    if getgenv().Bypass.SpoofReg and SafeExists(getreg) then
-        SafeHookFunction(getreg, newcclosure(function(...) return {} end))
-    end
-
-    if getgenv().Bypass.SpoofThreads and SafeExists(getthreads) then
-        SafeHookFunction(getthreads, newcclosure(function(...) return {} end))
-    end
-
-    if getgenv().Bypass.SpoofBytecode and SafeExists(getscriptbytecode) then
-        SafeHookFunction(getscriptbytecode, newcclosure(function(...) return "" end))
-    end
-
-    if getgenv().Bypass.SpoofScriptClosure and SafeExists(getscriptclosure) then
-        SafeHookFunction(getscriptclosure, newcclosure(function(...) return nil end))
-    end
-
-    if getgenv().Bypass.SpoofScriptFunction and SafeExists(getscriptfunction) then
-        SafeHookFunction(getscriptfunction, newcclosure(function(...) return nil end))
-    end
-
-    if getgenv().Bypass.SpoofScriptContext and SafeExists(getscriptcontext) then
-        SafeHookFunction(getscriptcontext, newcclosure(function(...) return nil end))
-    end
-
-    if getgenv().Bypass.SpoofScriptThread and SafeExists(getscriptthread) then
-        SafeHookFunction(getscriptthread, newcclosure(function(...) return nil end))
-    end
-
-    if getgenv().Bypass.SpoofScriptEnv and SafeExists(getscriptenv) then
-        SafeHookFunction(getscriptenv, newcclosure(function(...) return {} end))
-    end
-
-    if getgenv().Bypass.SpoofRunningScripts and SafeExists(getrunningscripts) then
-        SafeHookFunction(getrunningscripts, newcclosure(function(...) return {} end))
-    end
-
-    if getgenv().Bypass.SpoofScripts and SafeExists(getscripts) then
-        SafeHookFunction(getscripts, newcclosure(function(...) return {} end))
-    end
-
-    if getgenv().Bypass.SpoofScript and SafeExists(getscript) then
-        SafeHookFunction(getscript, newcclosure(function(...) return nil end))
-    end
-
     if getgenv().Bypass.BlockLoadstring and SafeExists(loadstring) then
         SafeHookFunction(loadstring, newcclosure(function(...)
             local ok, result = pcall(loadstring, ...)
@@ -557,7 +386,7 @@ if not Drawing then
     }
 end
 
-local Library = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/main/Fluent.luau"))()
+local Library = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/Soluna-Development/Library/main/Fluent.luau"))()
 
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
@@ -598,7 +427,6 @@ local CFG = {
     MostrarFOV = false,
     Prioridade = "Crosshair",
     WallCheck = false,
-
     ESP = {
         Highlight = false,
         Caixa = false,
@@ -615,7 +443,6 @@ local CFG = {
         Cor = Color3.fromRGB(0, 255, 140),
         TamanhoTexto = 13
     },
-
     SpeedOn = false,
     SpeedModo = "Suave",
     SpeedVal = 22,
