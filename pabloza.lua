@@ -1,20 +1,3 @@
---[[
-══════════════════════════════════════════════════════════════════════════
-  PABLOZA XIT — ULTRA EDITION (v6.0)
-  Executor alvo: Xeno 1.65.0
-  Multi-jogo | Combat completo | ESP melhorado | Bypass avançado
-  Anti-crash de RAM | Perfis por jogo | Painel limpo
-══════════════════════════════════════════════════════════════════════════
-  IMPORTANTE:
-  • TODAS as opções começam DESATIVADAS. O usuário ativa manualmente.
-  • O Bypass roda automaticamente e protege contra anti-cheats.
-  • Compatível com a maioria dos executores (Xeno, KRNL, Synapse, etc).
-══════════════════════════════════════════════════════════════════════════
-]]
-
--- ══════════════════════════════════════════════════════════════════════
--- 1) UTILITÁRIOS DE SEGURANÇA (helpers)
--- ══════════════════════════════════════════════════════════════════════
 local function SafeExists(fn) return type(fn) == "function" end
 local function SafeHookFunction(fn, wrapper)
     if not SafeExists(fn) then return nil end
@@ -23,34 +6,22 @@ local function SafeHookFunction(fn, wrapper)
     return nil
 end
 
--- ══════════════════════════════════════════════════════════════════════
--- 2) BYPASS / ANTI-CRASH AVANÇADO (universal)
--- ══════════════════════════════════════════════════════════════════════
--- Este sistema protege contra:
---   • Anti-cheats que crasham o cliente via GetObjects (payload .rbxmx)
---   • Anti-cheats que baixam listas de ban via HttpGet
---   • Anti-cheats que kickam/banem via FireServer/InvokeServer
---   • Anti-cheats que usam getconnections/getgc/getinfo para te achar
---   • Anti-cheats que detectam Drawing/HUI/executor
---   • Estouro de RAM por loop infinito de detecção
-
 getgenv().Bypass = {
     Enabled = true,
-    BlockGetObjects = true,     -- bloqueia payload de crash via ContentProvider
-    BlockHttp = true,           -- bloqueia HttpGet/HttpGetAsync de anti-cheat
-    BlockRemotes = true,        -- bloqueia FireServer/InvokeServer suspeitos
-    SpoofGC = true,             -- esconde seu script do getgc
-    SpoofConn = true,           -- esconde conexões do getconnections
-    SpoofInfo = true,           -- esconde info do getinfo/getcallingscript
-    SpoofIdentity = true,       -- esconde HWID/UserID/JobId/PlaceId
-    SpoofDrawing = true,        -- esconde Drawing/HUI
-    BlockLoadstring = true,     -- protege loadstring
-    BlockThreads = true,        -- protege task.spawn/coroutine
-    RamLimit = 3500,            -- MB limite antes de limpar (anti-crash RAM)
-    Detection = false,          -- virou true se detectou anti-cheat
+    BlockGetObjects = true,
+    BlockHttp = true,
+    BlockRemotes = true,
+    SpoofGC = true,
+    SpoofConn = true,
+    SpoofInfo = true,
+    SpoofIdentity = true,
+    SpoofDrawing = true,
+    BlockLoadstring = true,
+    BlockThreads = true,
+    RamLimit = 3500,
+    Detection = false,
 }
 
--- Serviços
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -64,7 +35,6 @@ local LocalPlayer = Players.LocalPlayer
 local function AntiCrash()
     local protegido = false
 
-    -- (A) NAMECALL — bloqueia kick/ban/detect/crash/exploit/cheat/anti
     local ok = pcall(function()
         hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
             local method = getnamecallmethod()
@@ -100,9 +70,7 @@ local function AntiCrash()
         end))
     end)
     local oldNamecall = ok and hookmetamethod(game, "__namecall", newcclosure(function() end)) or nil
-    -- (nota: o hook real é o primeiro; mantemos referência via upvalue interno)
 
-    -- (B) __index — bloqueia acesso a HttpGet de anti-cheat
     pcall(function()
         hookmetamethod(game, "__index", newcclosure(function(self, key)
             if key == "HttpGet" or key == "HttpGetAsync" then
@@ -117,7 +85,6 @@ local function AntiCrash()
         end))
     end)
 
-    -- (C) Spoof de getgc — esconde seu script
     if getgenv().Bypass.SpoofGC and SafeExists(getgc) then
         SafeHookFunction(getgc, newcclosure(function(...)
             local res = {}
@@ -128,7 +95,6 @@ local function AntiCrash()
                         local ok2, info = pcall(getinfo, v)
                         if ok2 and info and info.source then
                             if info.source:find("Pabloza") or info.source:find("xit") or info.source:find("Bypass") then
-                                -- esconde
                             else
                                 table.insert(res, v)
                             end
@@ -144,7 +110,6 @@ local function AntiCrash()
         end))
     end
 
-    -- (D) Spoof de getconnections — esconde suas conexões
     if getgenv().Bypass.SpoofConn and SafeExists(getconnections) then
         SafeHookFunction(getconnections, newcclosure(function(...)
             local ok, lista = pcall(getconnections, ...)
@@ -167,7 +132,6 @@ local function AntiCrash()
         end))
     end
 
-    -- (E) Spoof de getinfo — esconde origem do script
     if getgenv().Bypass.SpoofInfo and SafeExists(getinfo) then
         SafeHookFunction(getinfo, newcclosure(function(...)
             local ok, info = pcall(getinfo, ...)
@@ -187,19 +151,16 @@ local function AntiCrash()
         end))
     end
 
-    -- (F) Spoof de identidade — HWID/UserID/JobId/PlaceId
     if getgenv().Bypass.SpoofIdentity then
         local fakeUserId = 100000000
         local fakeJobId = "00000000-0000-0000-0000-000000000000"
         local fakePlaceId = 4483381587
         local fakeGameId = 4483381587
 
-        local oldGetUser = SafeHookFunction(identity, function() return 8 end) -- não existe, ignora
-        -- Spoof via getgenv já que não podemos hookar getters direto facilmente
+        local oldGetUser = SafeHookFunction(identity, function() return 8 end)
         getgenv().SpoofedUserId = fakeUserId
     end
 
-    -- (G) Spoof de Drawing/HUI
     if getgenv().Bypass.SpoofDrawing and SafeExists(gethui) then
         SafeHookFunction(gethui, newcclosure(function(...) return {} end))
     end
@@ -207,7 +168,6 @@ local function AntiCrash()
         SafeHookFunction(getdrawings, newcclosure(function(...) return {} end))
     end
 
-    -- (H) Spoof de funções de exploração
     local spoofs = {
         {getnilinstances, function() return {} end},
         {getinstances, function() return {} end},
@@ -233,7 +193,6 @@ local function AntiCrash()
         end
     end
 
-    -- (I) Proteção de loadstring
     if getgenv().Bypass.BlockLoadstring and SafeExists(loadstring) then
         SafeHookFunction(loadstring, newcclosure(function(...)
             local ok, result = pcall(loadstring, ...)
@@ -249,7 +208,6 @@ local function AntiCrash()
         end))
     end
 
-    -- (J) Proteção de task.spawn / coroutine
     if getgenv().Bypass.BlockThreads and SafeExists(task) then
         pcall(function()
             local oldSpawn = task.spawn
@@ -268,17 +226,14 @@ local function AntiCrash()
         end)
     end
 
-    -- (K) ANTI-CRASH DE RAM — monitora uso de memória e limpa
-    -- Combate o loop infinito de detecção que estoura a RAM.
     local ultimaLimpeza = 0
     RunService.Heartbeat:Connect(function()
         if not getgenv().Bypass.Enabled then return end
         local t = os.clock()
-        if t - ultimaLimpeza < 5 then return end -- checa a cada 5s
+        if t - ultimaLimpeza < 5 then return end
         ultimaLimpeza = t
         local ok, mem = pcall(function() return collectgarbage("count") end)
         if ok and mem and mem > getgenv().Bypass.RamLimit * 1024 then
-            -- RAM muito alta: força GC e limpa
             collectgarbage("collect")
             getgenv().Bypass.Detection = true
         end
@@ -287,12 +242,8 @@ local function AntiCrash()
     getgenv().Bypass.Active = true
 end
 
--- Executa o AntiCrash com proteção total
 local okBypass = pcall(AntiCrash)
 
--- ══════════════════════════════════════════════════════════════════════
--- 3) COMPATIBILIDADE COM DRAWING (fallback se executor não tiver)
--- ══════════════════════════════════════════════════════════════════════
 if not Drawing then
     getgenv().Drawing = {
         new = function(kind)
@@ -318,14 +269,8 @@ if not Drawing then
     }
 end
 
--- ══════════════════════════════════════════════════════════════════════
--- 4) CARREGAR BIBLIOTECA FLUENT (UI)
--- ══════════════════════════════════════════════════════════════════════
 local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
 
--- ══════════════════════════════════════════════════════════════════════
--- 5) VARIÁVEIS GLOBAIS
--- ══════════════════════════════════════════════════════════════════════
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 
@@ -338,11 +283,7 @@ end
 if LocalPlayer.Character then AtualizarChar(LocalPlayer.Character) end
 LocalPlayer.CharacterAdded:Connect(AtualizarChar)
 
--- ══════════════════════════════════════════════════════════════════════
--- 6) CONFIGURAÇÕES (todas desativadas por padrão)
--- ══════════════════════════════════════════════════════════════════════
 local CFG = {
-    -- COMBAT
     Aimbot = false,
     SilentAim = false,
     MagicBullet = false,
@@ -370,7 +311,6 @@ local CFG = {
     Prioridade = "Crosshair",
     WallCheck = false,
 
-    -- ESP
     ESP = {
         Highlight = false,
         Caixa = false,
@@ -381,14 +321,13 @@ local CFG = {
         Vida = false,
         Chams = false,
         Flags = false,
-        Armas = false,        -- ESP de armas/items no chão
-        CorTime = false,      -- cor por time
-        TargetHL = false,     -- destaca alvo do aimbot
+        Armas = false,
+        CorTime = false,
+        TargetHL = false,
         Cor = Color3.fromRGB(0, 255, 140),
         TamanhoTexto = 13
     },
 
-    -- MOVIMENTO
     SpeedOn = false,
     SpeedModo = "Suave",
     SpeedVal = 22,
@@ -411,9 +350,6 @@ local CFG = {
     TPClick = false,
 }
 
--- ══════════════════════════════════════════════════════════════════════
--- 7) ESTADO E VARIÁVEIS DE CONTROLE
--- ══════════════════════════════════════════════════════════════════════
 local HitboxOriginais = {}
 local LightingOriginal = {
     Brightness = Lighting.Brightness,
@@ -431,9 +367,6 @@ local AlvoAtual = nil
 local AlvoAtualChar = nil
 local AlvoCor = Color3.fromRGB(255, 80, 80)
 
--- ══════════════════════════════════════════════════════════════════════
--- 8) FUNÇÕES DE COMBAT — AJUDA
--- ══════════════════════════════════════════════════════════════════════
 local function MesmoTime(p)
     if not CFG.TeamCheck then return false end
     if LocalPlayer.Team and p.Team then return LocalPlayer.Team == p.Team end
@@ -494,24 +427,14 @@ local function PosAlvo(parte)
     return pos
 end
 
--- ══════════════════════════════════════════════════════════════════════
--- 9) SILENT AIM REAL + MAGIC BULLET + WALLBANG
--- ══════════════════════════════════════════════════════════════════════
--- Silent Aim: redireciona o Mouse.Hit/Target sem mover a câmera.
--- Magic Bullet: redireciona o FireServer das tools para sempre acertar.
--- Wallbang: o raycast ignora paredes.
-
 local function MagicBulletRay(origin, dir)
-    -- Raycast que atravessa paredes (para wallbang) e retorna o alvo
     local params = RaycastParams.new()
     params.FilterDescendantsInstances = {Char}
     params.FilterType = Enum.RaycastFilterType.Blacklist
-    -- Sem limite de distância de parede = atravessa tudo
     return workspace:Raycast(origin, dir * 1000, params)
 end
 
 local function HookMouse()
-    -- Hooka o Mouse para Silent Aim (redireciona o tiro sem mover câmera)
     local hookado = false
     pcall(function()
         local oldHit = hookmetamethod(Mouse, "__index", newcclosure(function(self, key)
@@ -531,18 +454,14 @@ local function HookMouse()
 end
 
 local function HookFireServer()
-    -- Hooka FireServer/InvokeServer para Magic Bullet
-    -- Redireciona remotes de tiro para o alvo
     local hookado = false
     pcall(function()
         local oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
             local method = getnamecallmethod()
             if (method == "FireServer" or method == "InvokeServer") and self:IsA("RemoteEvent") then
                 local args = {...}
-                -- Se o remote parece de tiro (contém posição), redireciona
                 if CFG.MagicBullet and AlvoAtual and args[1] then
                     local pos = PosAlvo(AlvoAtual)
-                    -- Substitui o argumento de posição (geralmente o 2º ou 3º)
                     for i = 1, #args do
                         if typeof(args[i]) == "CFrame" then
                             args[i] = CFrame.lookAt(args[i].Position, pos)
@@ -560,13 +479,9 @@ local function HookFireServer()
     return hookado
 end
 
--- Hooka os dois (silent aim + magic bullet)
 local SilentAimHooked = HookMouse()
 local MagicBulletHooked = HookFireServer()
 
--- ══════════════════════════════════════════════════════════════════════
--- 10) AIMBOT / AUTO-SHOOT / KILL AURA / ANTI-RECOIL
--- ══════════════════════════════════════════════════════════════════════
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.NumSides = 64
@@ -579,14 +494,10 @@ TargetLine.Thickness = 1.2
 TargetLine.Color = Color3.fromRGB(255, 80, 80)
 TargetLine.Visible = false
 
--- Anti-recoil: reduz o recuo da câmera
 local function AntiRecoilLoop()
     if not CFG.AntiRecoil or not Camera then return end
-    -- Simples: mantém a câmera estável quando atira
-    -- (implementação depende do jogo; aqui só não faz nada destrutivo)
 end
 
--- Kill Aura: dano em área
 local function KillAuraLoop()
     if not CFG.KillAura or not Root then return end
     for _, p in pairs(Players:GetPlayers()) do
@@ -596,7 +507,6 @@ local function KillAuraLoop()
             if hrp and h and h.Health > 0 then
                 local dist = (Root.Position - hrp.Position).Magnitude
                 if dist <= CFG.KillAuraRange then
-                    -- Tenta dano via remotes de dano (genérico)
                     pcall(function()
                         for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
                             if tool:IsA("Tool") then
@@ -611,10 +521,8 @@ local function KillAuraLoop()
     end
 end
 
--- Auto-clicker: clica automaticamente
 local function AutoClickerLoop()
     if not CFG.AutoClicker or not Mouse then return end
-    -- Simula clique
     pcall(function()
         Vim:SendMouseButtonEvent(0, 0, 0, true, game, 0)
         task.wait(0.02)
@@ -622,9 +530,6 @@ local function AutoClickerLoop()
     end)
 end
 
--- ══════════════════════════════════════════════════════════════════════
--- 11) HITBOX EXPANDER
--- ══════════════════════════════════════════════════════════════════════
 local function AplicarHitbox(p, on)
     local c = p.Character
     if not c then return end
@@ -655,9 +560,6 @@ local function AtualizarHitboxes()
     end
 end
 
--- ══════════════════════════════════════════════════════════════════════
--- 12) ESP MELHORADO
--- ══════════════════════════════════════════════════════════════════════
 local function LimparESP(p)
     local o = ESPObjs[p]
     if not o then return end
@@ -764,13 +666,12 @@ local function OlhandoPraVoce(p)
     return look:Dot(dir) > 0.75
 end
 
--- Cor por time
 local function CorDoPlayer(p)
     if CFG.ESP.CorTime and p.Team then
         if p.Team == LocalPlayer.Team then
-            return Color3.fromRGB(0, 255, 100) -- aliado
+            return Color3.fromRGB(0, 255, 100)
         else
-            return Color3.fromRGB(255, 80, 80) -- inimigo
+            return Color3.fromRGB(255, 80, 80)
         end
     end
     return CFG.ESP.Cor
@@ -794,10 +695,9 @@ local function ESPLoop()
         if not d then continue end
         local cor = CorDoPlayer(p)
 
-        -- Target highlight (alvo do aimbot em vermelho)
         local isTarget = (AlvoAtual and AlvoAtual.Parent == c)
         if CFG.ESP.TargetHL and isTarget then
-            cor = Color3.fromRGB(255, 220, 40) -- amarelo para alvo
+            cor = Color3.fromRGB(255, 220, 40)
         end
 
         if d.HL then
@@ -866,7 +766,6 @@ local function ESPLoop()
                 d.VidaBG.Visible = true
                 d.VidaFG.Size = Vector2.new(w, hh * pct)
                 d.VidaFG.Position = Vector2.new(bp.X, bp.Y + hh * (1 - pct))
-                -- Cor gradiente verde->amarelo->vermelho
                 d.VidaFG.Color = Color3.fromRGB(255 * (1 - pct), 255 * pct, 40)
                 d.VidaFG.Visible = true
             else
@@ -903,7 +802,6 @@ local function ESPLoop()
     end
 end
 
--- ESP de armas/items no chão
 local ItemESPLines = {}
 local function ESPArmasLoop()
     if not CFG.ESP.Armas or not Root then
@@ -944,9 +842,6 @@ local function ESPArmasLoop()
     end
 end
 
--- ══════════════════════════════════════════════════════════════════════
--- 13) RADAR 2D
--- ══════════════════════════════════════════════════════════════════════
 local RadarBG = Drawing.new("Circle")
 RadarBG.Filled = true
 RadarBG.Color = Color3.fromRGB(20, 20, 25)
@@ -1001,9 +896,6 @@ local function RadarLoop()
     end
 end
 
--- ══════════════════════════════════════════════════════════════════════
--- 14) LOOP PRINCIPAL (RenderStepped)
--- ══════════════════════════════════════════════════════════════════════
 local lastAutoClick = 0
 local lastKillAura = 0
 
@@ -1016,10 +908,8 @@ RunService.RenderStepped:Connect(function()
     RadarLoop()
     AtualizarHitboxes()
 
-    -- Seleciona alvo
     local aimAtivo = CFG.Aimbot or CFG.SilentAim or CFG.AutoLock or CFG.AutoShoot or CFG.MagicBullet
     if aimAtivo then
-        -- Hold-to-aim: só mira se segurando a tecla
         local podeMirar = true
         if CFG.HoldAim then
             if CFG.AimKey == Enum.KeyCode.RightMouseButton then
@@ -1040,16 +930,12 @@ RunService.RenderStepped:Connect(function()
         AlvoAtualChar = nil
     end
 
-    -- Aimbot (move câmera)
     if AlvoAtual and CFG.Aimbot and not CFG.SilentAim then
         local pos = PosAlvo(AlvoAtual)
         local cf = CFrame.lookAt(Camera.CFrame.Position, pos)
         Camera.CFrame = Camera.CFrame:Lerp(cf, math.clamp(CFG.Suavidade, 0.05, 0.6))
     end
 
-    -- Silent Aim: não move câmera (o hook do Mouse faz o trabalho)
-
-    -- Target Line
     if AlvoAtual and CFG.TargetLine and Root then
         local sp, on = W2S(AlvoAtual.Position)
         if on then
@@ -1063,33 +949,26 @@ RunService.RenderStepped:Connect(function()
         TargetLine.Visible = false
     end
 
-    -- Auto-shoot
     if AlvoAtual and CFG.AutoShoot then
         pcall(function()
             Vim:SendMouseButtonEvent(0, 0, 0, true, game, 0)
         end)
     end
 
-    -- Anti-recoil
     if CFG.AntiRecoil then AntiRecoilLoop() end
 
-    -- Kill Aura (throttle)
     local t = os.clock()
     if t - lastKillAura > 0.5 then
         lastKillAura = t
         KillAuraLoop()
     end
 
-    -- Auto-clicker (throttle)
     if CFG.AutoClicker and t - lastAutoClick > (1 / CFG.ClickSpeed) then
         lastAutoClick = t
         AutoClickerLoop()
     end
 end)
 
--- ══════════════════════════════════════════════════════════════════════
--- 15) MOVIMENTO
--- ══════════════════════════════════════════════════════════════════════
 local function SetSpeed(on)
     CFG.SpeedOn = on
     if SpeedConn then SpeedConn:Disconnect() SpeedConn = nil end
@@ -1282,9 +1161,6 @@ UserInputService.InputBegan:Connect(function(input, gp)
     end
 end)
 
--- ══════════════════════════════════════════════════════════════════════
--- 16) PERFIS POR JOGO (salvar/carregar configurações por jogo)
--- ══════════════════════════════════════════════════════════════════════
 local PerfilAtual = game.PlaceId
 local Perfis = getgenv().Perfis or {}
 getgenv().Perfis = Perfis
@@ -1341,9 +1217,6 @@ local function CarregarPerfil()
     CFG.Radar = p.Radar or false
 end
 
--- ══════════════════════════════════════════════════════════════════════
--- 17) PLAYER ADDED/REMOVING
--- ══════════════════════════════════════════════════════════════════════
 Players.PlayerAdded:Connect(function(p)
     p.CharacterAdded:Connect(function()
         task.wait(0.5)
@@ -1357,9 +1230,6 @@ Players.PlayerRemoving:Connect(function(p)
     HitboxOriginais[p.UserId .. "HumanoidRootPart"] = nil
 end)
 
--- ══════════════════════════════════════════════════════════════════════
--- 18) INTERFACE (Fluent)
--- ══════════════════════════════════════════════════════════════════════
 local PanelKey = Enum.KeyCode.RightControl
 local PanicKey = Enum.KeyCode.Nine
 
@@ -1383,7 +1253,6 @@ local Tabs = {
     Bypass = Window:CreateTab{Title = "Bypass", Icon = "shield"},
 }
 
--- ════════════════ ABA COMBATE ════════════════
 Tabs.Combate:CreateSection("Aim")
 Tabs.Combate:CreateToggle("Aimbot", {Title = "Aimbot", Default = false, Callback = function(v) CFG.Aimbot = v end})
 Tabs.Combate:CreateToggle("SilentAim", {Title = "Silent Aim", Default = false, Callback = function(v) CFG.SilentAim = v end})
@@ -1414,7 +1283,6 @@ Tabs.Combate:CreateToggle("WallCheck", {Title = "Wall Check", Default = false, C
 Tabs.Combate:CreateToggle("MostrarFOV", {Title = "Mostrar FOV", Default = false, Callback = function(v) CFG.MostrarFOV = v end})
 Tabs.Combate:CreateToggle("HitboxExp", {Title = "Hitbox Expander", Default = false, Callback = function(v) CFG.HitboxExp = v end})
 
--- ════════════════ ABA ESP ════════════════
 Tabs.ESP:CreateSection("ESP de Jogadores")
 Tabs.ESP:CreateToggle("HL", {Title = "Highlight", Default = false, Callback = function(v) CFG.ESP.Highlight = v end})
 Tabs.ESP:CreateToggle("Caixa", {Title = "Caixa", Default = false, Callback = function(v) CFG.ESP.Caixa = v end})
@@ -1433,7 +1301,6 @@ Tabs.ESP:CreateToggle("Armas", {Title = "ESP de Armas/Items", Default = false, C
 Tabs.ESP:CreateSlider("TamanhoTexto", {Title = "Tamanho Distância", Default = 13, Min = 8, Max = 24, Rounding = 0, Callback = function(v) CFG.ESP.TamanhoTexto = v end})
 Tabs.ESP:CreateColorpicker("ESPCor", {Title = "Cor do ESP", Default = Color3.fromRGB(0, 255, 140), Callback = function(v) CFG.ESP.Cor = v end})
 
--- ════════════════ ABA MOVIMENTO ════════════════
 Tabs.Movimento:CreateSection("Movimento")
 Tabs.Movimento:CreateToggle("Speed", {Title = "Speed Hack", Default = false, Callback = function(v) SetSpeed(v) end})
 Tabs.Movimento:CreateDropdown("SpeedModo", {Title = "Modo Speed", Values = {"Suave", "Rapido"}, Default = 1, Callback = function(v) CFG.SpeedModo = v end})
@@ -1472,7 +1339,6 @@ Tabs.Movimento:CreateDropdown("TPPlayer", {
     end
 })
 
--- ════════════════ ABA UTILIDADE ════════════════
 Tabs.Util:CreateSection("Visual")
 Tabs.Util:CreateToggle("Fullbright", {Title = "Fullbright", Default = false, Callback = function(v) SetFullbright(v) end})
 Tabs.Util:CreateToggle("NoFog", {Title = "No Fog", Default = false, Callback = function(v) SetNoFog(v) end})
@@ -1552,7 +1418,6 @@ Tabs.Util:CreateButton{Title = "Configurar Tecla Panic", Callback = function()
     end)
 end}
 
--- Panic Mode
 local PanicActive = false
 local EstadoOriginal = {}
 
@@ -1607,7 +1472,6 @@ UserInputService.InputBegan:Connect(function(input, gp)
     end
 end)
 
--- ════════════════ ABA BYPASS ════════════════
 Tabs.Bypass:CreateSection("Proteção Anti-Cheat")
 Tabs.Bypass:CreateToggle("BypassEnabled", {Title = "Bypass Ativo", Default = true, Callback = function(v)
     getgenv().Bypass.Enabled = v
@@ -1659,14 +1523,10 @@ Tabs.Bypass:CreateButton{Title = "Ver Status do Bypass", Callback = function()
     Library:Notify{Title = "Bypass", Content = "Ativo: " .. ativo .. " | Anti-cheat detectado: " .. det, Duration = 4}
 end}
 
--- ══════════════════════════════════════════════════════════════════════
--- 19) INICIALIZAÇÃO
--- ══════════════════════════════════════════════════════════════════════
 Window:SelectTab(1)
 CarregarPerfil()
 Library:Notify{Title = "Pabloza xit", Content = "ULTRA v6.0 carregado! Bypass ativo. Ative as opções manualmente.", Duration = 5}
 
--- Salva perfil ao sair
 game:BindToClose(function()
     SalvarPerfil()
 end)
